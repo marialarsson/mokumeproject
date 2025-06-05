@@ -7,7 +7,7 @@ The full dataset and outputs are hosted at Zenodo - INSERT LINK. The code is hos
 ![Teaser image.](README_IMGS/teaser.jpg)
 
 ***a.*** *Overview of the diverse wood species covered by the Mokume dataset.*
-***b.*** *This data is used for training and evaluation of an inverse modeling pipeline for solid wood textures. Our method first evaluates a neural model that converts the exterior photographs into 2D annotations of the annual ring pattern. We then compute a compatible procedural growth field (GF) that assigns a time to every 3D position, denoting when the associated material was added during the tree’s growth. The annual-rings are iso-curves/surfaces of this growth field. We showcase two ways to transform this representation into a detailed 3D texture: an efficient inverse procedural model (Proc) with support for point-wise evaluation, and a versatile but resource-intensive neural cellular automaton (NCA).*
+***b.*** *This data is used for training and evaluation of an inverse modeling pipeline for solid wood textures. Our method first segements the annual ring pattern and then compute a compatible procedural volumetric growth field (GF) in which the annual-rings are iso-curves/surfaces. We showcase two ways to transform this representation into a detailed 3D texture: an efficient inverse procedural model (Proc) with support for point-wise evaluation, and a versatile but resource-intensive neural cellular automaton (NCA).*
 
 ## Paper Abstract
 
@@ -44,13 +44,15 @@ We demonstrate the synergy between the Mokume dataset and the proposed algorithm
 
 ## Resources
 
-The Mokume Project website: https://mokumeproject.github.io/
+Project website: https://mokumeproject.github.io/
 
 PDF: https://www.ma-la.com/mokume/preprint_paper.pdf 
 
 DOI: https://doi.org/10.1145/3730874
 
-Dataset and outputs: INSERT LINK
+Dataset: INSERT LINK
+
+Results: INSERT LINK
 
 ## Reference
 
