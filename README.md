@@ -1,7 +1,7 @@
 # The Mokume Dataset and Inverse Modeling of Solid Wood Textures
 
 This repository is associated with the journal paper "The Mokume Dataset and Inverse Modeling of Solid Wood Textures" (SIGGRAPH 2025). 
-The full dataset and results (our reconstructed solid textures) is hosted at Zenodo - INSERT LINK.
+The full dataset and outputs are hosted at Zenodo - INSERT LINK.
 The code is hosted here.
 
 ## Paper Abstract
