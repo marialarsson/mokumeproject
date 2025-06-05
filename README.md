@@ -33,8 +33,11 @@ Step 5: Visualize the outputs of steps 3-4
 ## Resources
 
 The Mokume Project website: https://mokumeproject.github.io/
+
 PDF: https://www.ma-la.com/mokume/preprint_paper.pdf 
+
 DOI: https://doi.org/10.1145/3730874
+
 Dataset and outputs: INSERT LINK
 
 ## Reference
