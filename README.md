@@ -1,7 +1,7 @@
 # The Mokume Dataset and Inverse Modeling of Solid Wood Textures
 
 This repository is associated with the journal paper "The Mokume Dataset and Inverse Modeling of Solid Wood Textures" presented at SIGGRAPH 2025 ([PDF](https://www.ma-la.com/mokume/preprint_paper.pdf), [DOI](https://doi.org/10.1145/3730874)).
-The full dataset and outputs are hosted at Zenodo - INSERT LINK. The code is hosted in this repository.
+The full dataset and outputs are hosted elsewhere (**INSERT LINK**). The code is hosted in this repository.
 
 
 ![Teaser image.](README_IMGS/teaser.jpg)
@@ -24,11 +24,14 @@ We demonstrate the synergy between the Mokume dataset and the proposed algorithm
 ### Environment setup
 
 ...
-...
-...
+
 ...
 
-### Steps of the System
+...
+
+...
+
+### System Outline
 
 **Step 1:** Train the U-Net (this step can be skipped, since the trained model is provided)
 
@@ -50,9 +53,9 @@ PDF: https://www.ma-la.com/mokume/preprint_paper.pdf
 
 DOI: https://doi.org/10.1145/3730874
 
-Dataset: INSERT LINK
+Dataset: **INSERT LINK**
 
-Results: INSERT LINK
+Results: **INSERT LINK**
 
 ## Reference
 
