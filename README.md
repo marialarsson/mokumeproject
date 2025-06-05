@@ -1,14 +1,21 @@
 # The Mokume Dataset and Inverse Modeling of Solid Wood Textures
 
-This repository is associated with the journal paper "The Mokume Dataset and Inverse Modeling of Solid Wood Textures" (SIGGRAPH 2025). 
-The full dataset and outputs are hosted at Zenodo - INSERT LINK.
-The code is hosted here.
+This repository is associated with the journal paper "The Mokume Dataset and Inverse Modeling of Solid Wood Textures" presented at SIGGRAPH 2025 ([PDF](https://www.ma-la.com/mokume/preprint_paper.pdf)).
+The full dataset and outputs are hosted at Zenodo - INSERT LINK. The code is hosted in this repository.
+
+
+![Teaser image.](README_IMGS/teaser.jpg)
+
+***a.*** *Overview of the diverse wood species covered by the Mokume dataset.*
+***b.*** *This data is used for training and evaluation of an inverse modeling pipeline for solid wood textures. Our method first evaluates a neural model that converts the exterior photographs into 2D annotations of the annual ring pattern. We then compute a compatible procedural growth field (GF) that assigns a time to every 3D position, denoting when the associated material was added during the tree’s growth. The annual-rings are iso-curves/surfaces of this growth field. We showcase two ways to transform this representation into a detailed 3D texture: an efficient inverse procedural model (Proc) with support for point-wise evaluation, and a versatile but resource-intensive neural cellular automaton (NCA).*
 
 ## Paper Abstract
 
 We present the Mokume dataset for solid wood texturing consisting of 190 cube-shaped samples of various hard and softwood species documented by high-resolution exterior photographs, annual ring annotations, and volumetric computed tomography (CT) scans. A subset of samples further includes photographs along slanted cuts through the cube for validation purposes.
 
+
 Using this dataset, we propose a three-stage inverse modeling pipeline to infer solid wood textures using only exterior photographs. Our method begins by evaluating a neural model to localize year rings on the cube face photographs. We then extend these exterior 2D observations into a globally consistent 3D representation by optimizing a procedural growth field using a novel iso-contour loss. Finally, we synthesize a detailed volumetric color texture from the growth field. For this last step, we propose two methods with different efficiency and quality characteristics: a fast inverse procedural texture method, and a neural cellular automaton (NCA). 
+
 
 We demonstrate the synergy between the Mokume dataset and the proposed algorithms through comprehensive comparisons with unseen captured data. We also present experiments demonstrating the efficiency of our pipeline’s components against ablations and baselines. 
 
@@ -23,12 +30,17 @@ We demonstrate the synergy between the Mokume dataset and the proposed algorithm
 
 ### Steps of the System
 
-Step 1: Train the U-Net (this step can be skipped, since the trained model is provided)
-Step 2: Apply the U-Net to translate wood photographs to annual ring localization images
-Step 3: Run file X to infer the volumetric growth field of the sample and its color initalization
-Step 4a: Run file X to run the texture synthesis appraoch 1: inverse procedural texturing
-Step 4b: Run file X to train and apply texture synthesis approach 2: neural cellular automata
-Step 5: Visualize the outputs of steps 3-4
+**Step 1:** Train the U-Net (this step can be skipped, since the trained model is provided)
+
+**Step 2:** Apply the U-Net to translate wood photographs to annual ring localization images
+
+**Step 3:** Run file X to infer the volumetric growth field of the sample and its color initalization
+
+**Step 4a:** Run file X to run the texture synthesis appraoch 1: inverse procedural texturing
+
+**Step 4b:** Run file X to train and apply texture synthesis approach 2: neural cellular automata
+
+**Step 5:** Visualize the outputs of steps 3-4
 
 ## Resources
 
