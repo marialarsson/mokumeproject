@@ -30,8 +30,8 @@ class DataInstance:
         HWs = [(H,W),(D,W),(H,D),(D,W),(H,D),(H,W)]
         self.rgb_imgs_torch = []
         self.rgb_imgs_np = []
-        self.arf_imgs_torch = []
-        self.arf_imgs_np = []
+        self.arl_imgs_torch = []
+        self.arl_imgs_np = []
         self.gtf_imgs_np = []
         self.norm_gtf_np = []
         self.gtf_map_imgs_np = []
@@ -48,8 +48,8 @@ class DataInstance:
 
             self.rgb_imgs_torch.append(black_img_3ch)
             self.rgb_imgs_np.append(image_utils.floatImg_to_intImg(black_img_3ch.numpy(), scale_255=True))
-            self.arf_imgs_torch.append(black_img_1ch)
-            self.arf_imgs_np.append(image_utils.floatImg_to_intImg(black_img_1ch.numpy(), scale_255=True))
+            self.arl_imgs_torch.append(black_img_1ch)
+            self.arl_imgs_np.append(image_utils.floatImg_to_intImg(black_img_1ch.numpy(), scale_255=True))
             self.gtf_imgs_torch.append(black_img_1ch)
             self.gtf_imgs_np.append(black_img_1ch.numpy())
             self.norm_gtf_np.append(black_img_1ch.numpy())
@@ -61,7 +61,7 @@ class DataInstance:
             
         
         self.unfolded_rgb_img =  data_utils.get_unfolded_image(self.rgb_imgs_np)
-        self.unfolded_arf_img =  data_utils.get_unfolded_image(self.arf_imgs_np)
+        self.unfolded_arl_img =  data_utils.get_unfolded_image(self.arl_imgs_np)
         self.unfolded_gtf_img =  data_utils.get_unfolded_image(self.gtf_imgs_np)
         self.unfolded_loss_img = data_utils.get_unfolded_image(self.loss_imgs_np, black_bg=True)
 
@@ -113,7 +113,7 @@ class DataInstance:
             self.rgb_imgs_np[i] = img_np
         self.unfolded_rgb_img = data_utils.get_unfolded_image(self.rgb_imgs_np)
 
-    def update_arf_imgs_from_numpy(self, imgs_np):
+    def update_arl_imgs_from_numpy(self, imgs_np):
         for i,img_np in enumerate(imgs_np):
 
             #make sure its greyscale
@@ -123,27 +123,27 @@ class DataInstance:
             if img_np.dtype != np.uint8: img_np = (img_np * 255.0).astype(np.uint8)
 
             #numpy range 0-255
-            self.arf_imgs_np[i]=img_np
+            self.arl_imgs_np[i]=img_np
             
             #torch range 0.0-1.0           
             img_torch = torch.from_numpy(img_np).clone()
             img_torch = img_torch.type(torch.float32)
             img_torch = img_torch/255.0
-            self.arf_imgs_torch[i]= img_torch
+            self.arl_imgs_torch[i]= img_torch
         
-        self.unfolded_arf_img = data_utils.get_unfolded_image(self.arf_imgs_np)
+        self.unfolded_arl_img = data_utils.get_unfolded_image(self.arl_imgs_np)
     
-    def update_arf_imgs_from_torch(self, imgs_torch):
+    def update_arl_imgs_from_torch(self, imgs_torch):
         for i,img_torch in enumerate(imgs_torch):
 
             #torch
-            self.arf_imgs_torch[i] = img_torch
+            self.arl_imgs_torch[i] = img_torch
 
             #numpy
             if img_torch.requires_grad: img_torch=img_torch.detach()
-            self.arf_imgs_np[i] = image_utils.floatImg_to_intImg(img_torch.numpy(), scale_255=True)
+            self.arl_imgs_np[i] = image_utils.floatImg_to_intImg(img_torch.numpy(), scale_255=True)
         
-        self.unfolded_arf_img = data_utils.get_unfolded_image(self.arf_imgs_np)
+        self.unfolded_arl_img = data_utils.get_unfolded_image(self.arl_imgs_np)
 
     def update_gtf_imgs_from_torch(self, imgs_torch):
         
@@ -204,12 +204,12 @@ class DataInstance:
 
         
 
-    def update_average_arf_color(self):
+    def update_average_arl_color(self):
         average_colors = [] 
-        for img_np in self.arf_imgs_np:
+        for img_np in self.arl_imgs_np:
             average_colors.append(img_np.mean())
-        self.average_arf_color = np.array(average_colors).mean()
-        #print("Average arf color", self.average_arf_color)
+        self.average_arl_color = np.array(average_colors).mean()
+        #print("Average arl color", self.average_arl_color)
 
     def update_normalized_gtf(self):
 
@@ -462,7 +462,7 @@ class DataInstance:
                 
     def get_gradient_magnitude_imgs(self):
         self.gradient_magnitude_imgs = []
-        for img_torch in self.arf_imgs_torch:
+        for img_torch in self.arl_imgs_torch:
             gm_img = data_utils.get_gradient_magnitude_image(img_torch)
             self.gradient_magnitude_imgs.append(gm_img)
 
@@ -471,7 +471,7 @@ class DataInstance:
         self.contour_pixels = []
         self.contour_positions = []
         
-        for j,(img,display_img,xyz) in enumerate(zip(self.arf_imgs_np,self.rgb_imgs_np,xyzs)):
+        for j,(img,display_img,xyz) in enumerate(zip(self.arl_imgs_np,self.rgb_imgs_np,xyzs)):
 
             con_pxs, con_img = data_utils.get_image_open_contours(img, display_img, out_torch=True, display=False, save_img=save_cont_img, index=j)  # Get ground truth image countours in 2D
             self.contour_pixels.append(con_pxs)

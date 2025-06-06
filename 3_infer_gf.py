@@ -39,9 +39,17 @@ def main():
     DATA_FOLDER_PATH = "Samples\\"
 
     # Optimization parameters
-    ITER_NUM = 200
+    PITH_ITER_NUM = 100 # number of iterations for optimization of growth field PITH AXIS
+    DIST_ITER_NUM = 100 # number of iterations for optimization of growth field DISTORTIONS
+    ITER_NUM = PITH_ITER_NUM + DIST_ITER_NUM
     LEARNING_RATE = 0.2
-    LAMBDA = 0.001 
+    PITH_LAMBDA = 0.0002 
+    DIST_LAMBDA = 0.1
+
+    # Resolution of R
+    HEIGHT_NUM = 8
+    AZIMUTH_NUM = 16
+    RADIUS_NUM = 16
 
     # Setup
     start_time = datetime.now()
@@ -56,7 +64,8 @@ def main():
     target_data.update_rgb_imgs_from_numpy(rgb_imgs)
     target_data.create_white_balanced_rgb_imgs()
     target_data.update_average_wb_rgb_color()
-    target_data.update_arf_imgs_from_numpy(arl_imgs)
+    target_data.update_arl_imgs_from_numpy(arl_imgs)
+    target_data.update_average_arl_color()
     output_data = DataInstance(dim, dim, dim, OUTPUT=True)
     out_img_coords = data_utils.generate_cuboid_coordinates(dim,dim,dim)
     target_data.get_contours(out_img_coords)
@@ -64,42 +73,99 @@ def main():
     # Initialize lists for optimization
     loss_log = []
     isoContour_loss_log = []
+    locImage_loss_log = []
+    colImage_loss_log = []
     regularization_log = []
     best_i = 0
     min_loss = torch.tensor(99999.9)
+    grad_des_optim = False
 
     # Initialize parmameter class
     params = ProceduralParameters()
 
     # Make list of pith axis for initla discontinous search
-    Xs = []       
-    dir = torch.tensor([0.0, 1.0, 0.0])
-    dir += 0.01 * (torch.rand(3)-0.5)
-    dir = dir/np.linalg.norm(dir)
+    OVs = []       
+    V = torch.tensor([0.0, 1.0, 0.0])
+    V += 0.01 * (torch.rand(3)-0.5)
+    V = V/np.linalg.norm(V)
     for px in range(-3,2,4):
         for py in range(-3,2,4):
-            off = torch.tensor([0.5*px, 0.0, 0.5*py])
-            off = torch.tensor(off)
-            X = torch.cat((off, dir), dim=0)
-            Xs.append(X)
+            O = torch.tensor([0.5*px, 0.0, 0.5*py])
+            O = torch.tensor(O)
+            OVs.append([O,V])
+    params.update_init_pith_parameters(OVs[0][0],OVs[0][1])
+    VL0s = [(index + 1) for index in range(len(OVs))]     # Vertical lines at discontinous search points for displaying in plot
 
-    # Vertical lines at discontinous search points for displaying in plot
-    VL0s = [(index + 1) for index in range(len(Xs))]
+    # Initiate R
+    R = torch.zeros(HEIGHT_NUM,AZIMUTH_NUM,RADIUS_NUM)
+    height_range, spoke_range, ring_range = data_utils.get_ranges(params, out_img_coords, ABs, ARF_TYPE)        
+    params.init_refined_procedual_parameters(HEIGHT_NUM, height_range, AZIMUTH_NUM, spoke_range, RADIUS_NUM, ring_range)
+    params.update_spoke_rads(R)
+
+    """
+    # Check for knot
+    RENDER_KNOT = False
+    COL_IMAGE_LOSS = False
+    ltrs = ['A','B','C','D','E','F']
+    # read knot center points - get their position in the image, translate to the 3D position
+    knot_pts = []
+    for j in range(6):
+        file_name = out_path  + ltrs[j] + "_ann.png"
+        if os.path.exists(file_name):
+            ann_img = cv2.imread(file_name, cv2.IMREAD_GRAYSCALE)
+            mask = (ann_img >= 180) & (ann_img <= 220)
+            indices = np.argwhere(mask)
+            for pixel_index in indices:                
+                x = pixel_index[0]
+                y = pixel_index[1]
+                knot_pt = out_img_coords[j][y][x]
+                knot_pts.append(knot_pt)
+        else:
+            break
+    if len(knot_pts)==2: 
+        RENDER_KNOT = True
+        COL_IMAGE_LOSS = True
+        if EVALUATION_MODE and EVALUATION_TYPE==4: COL_IMAGE_LOSS=False
+        print("Knot identified")
+        # set dir/org
+        knot_org = torch.tensor(0.5*(knot_pts[0] + knot_pts[1]))
+        knot_dir = torch.tensor(knot_pts[0] - knot_pts[1])
+        knot_dir = knot_dir/knot_dir.norm()
+        params.init_knot_parameters(knot_org, knot_dir)
+        # init knot deforms
+        knot_deformations = torch.zeros(8)
+        best_knot_deformations = torch.zeros_like(knot_deformations)
+        params.update_knot_deform_parameters(knot_deformations)
+        knot_deformations.requires_grad_()
+        # init knot simple colors
+        simple_colors = torch.zeros(7)
+        params.update_simple_colors(simple_colors)
+        simple_colors.requires_grad_()"""
+    
+    # Initialize arf bar
+    params.update_average_arf_color(torch.tensor(target_data.average_arl_color/255.0))
+    M = torch.zeros(256) #M is the annual ring localization 1D greymap
+    params.update_base_arl_color_bar(length=M.size()[0])
 
     # Optimization loop 
     for i in tqdm(range(ITER_NUM), desc=SAMPLE_NAME):
 
-        if i<len(Xs): # If initial discontinous grid search stage
-            X = Xs[i]
-            X.requires_grad_()
-            optimizer = Adam([X], lr=LEARNING_RATE)
-        elif i==len(Xs): # Else if first iteration after discontious grid search
-            X = torch.from_numpy(best_X) # Reinstate the best initial pith axis
-            X.requires_grad_()
-            optimizer = Adam([X], lr=LEARNING_RATE)
-        
+        if i<len(OVs): # If initial discontinous grid search stage
+            O,V = OVs[i]
+        elif i==len(OVs): # Else if first iteration of pith after discontious grid search
+            grad_des_optim = True
+            O,V = best_OV # Reinstate the best initial pith axis
+            O = torch.from_numpy(O)
+            V = torch.from_numpy(V)
+            O.requires_grad_()
+            V.requires_grad_()
+            optimizer = Adam([O,V], lr=LEARNING_RATE)
+        elif i==PITH_ITER_NUM: # Else if first iteration of distrotions
+            R.requires_grad_()
+            M.requires_grad_()
+
         # Update parameters
-        params.update_init_pith_parameters(X)
+        params.update_init_pith_parameters(O,V)
 
         # Apply procedural funciton
         img_gtfs = []
@@ -108,7 +174,7 @@ def main():
 
             px_coords = px_coords.view(-1,3)
 
-            img_gtf = procedural_wood_function_for_initialization(params, px_coords, A=256, B=256, return_reshaped=True)
+            img_gtf = procedural_wood_function_for_initialization(params, px_coords, A=dim, B=dim, return_reshaped=True)
             img_gtfs.append(img_gtf)
         
         output_data.update_gtf_imgs_from_torch(img_gtfs)
@@ -131,20 +197,20 @@ def main():
         output_data.update_loss_imgs_from_np(loss_imgs)
 
         # Add regularization term
-        regularization_term = LAMBDA * (X ** 2).sum()
+        regularization_term = LAMBDA * ( (O ** 2).sum() + (V ** 2).sum())
         regularization_log.append(float(regularization_term.detach()))
         loss += regularization_term
         
-        optimizer.zero_grad()
-        loss.backward()
-
-        optimizer.step()
+        if grad_des_optim:
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
         ####################################################################
 
-        # if better
+        # If lower loss
         if loss<min_loss:
-            best_X = X.detach().numpy()
+            best_OV = [O.detach().numpy(), V.detach().numpy()]
             min_loss = loss.detach()
             best_i = i
         
@@ -152,21 +218,22 @@ def main():
         isoContour_loss_log.append(float(isoContour_loss))
         loss_log.append(float(loss))
 
-        # Plot optimization progress
+        # Show intermediate output images and plot optimization progress
         out_display_height = 256
-        loss_list = [loss_log, isoContour_loss_log]
-        loss_lbls = ["Total", "IsoContour loss"]
+        # Plot losses
+        loss_list = [loss_log, isoContour_loss_log, regularization_log]
+        loss_lbls = ["Total", "IsoContour loss", "Regularization"]
         plt_img = data_utils.get_plot_image(loss_list, loss_lbls, regularization_log, best_i, min_loss, ITER_NUM, H=out_display_height, VL0s=VL0s, simple=False)
-
-        imgs = [output_data.unfolded_gtf_map_img]
-        txts = ['']
+        # Compose images
+        imgs = [target_data.unfolded_rgb_img, target_data.unfolded_arl_img, output_data.unfolded_gtf_map_img]
+        txts = ['', '', '']
         map_imgs = [output_data.unfolded_loss_img]
         map_txts = ['']
         map_cmaps = ['cool']
-        img = data_utils.assemble_images(imgs, txts, map_imgs, map_txts, map_cmaps, out_display_height, simple=False)
-        #img = np.hstack([img,plt_img])
+        img = data_utils.assemble_images(imgs, txts, map_imgs, map_txts, map_cmaps, out_display_height)
+        img = np.hstack([img,plt_img])
         cv2.imshow("Growth field optimization", img)
-        #cv2.waitKey(1)
+        cv2.waitKey(1)
         
         
     dd, dh, dm, ds = opti_utils.get_elapsed_time(start_time)

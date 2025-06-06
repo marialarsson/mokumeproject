@@ -191,7 +191,7 @@ def get_plot_image(loss_logs, loss_lbls, reg_log, best_i, best_loss, N, H=256, V
     return plt_img
 
 
-def assemble_images(imgs, txts, map_imgs, map_txts, map_cmaps, H, map_conts=[], simple=False):
+def assemble_images(imgs, txts, map_imgs, map_txts, map_cmaps, H):
 
     all_imgs = []
 
@@ -209,6 +209,36 @@ def assemble_images(imgs, txts, map_imgs, map_txts, map_cmaps, H, map_conts=[], 
         cv2.putText(img, txt, (5,25), cv2.FONT_HERSHEY_DUPLEX, 0.6, (0,0,0))
         all_imgs.append(img)
 
+    for i, (img, txt, mcmap) in enumerate(zip(map_imgs, map_txts, map_cmaps)):
+        h = img.shape[0]
+        w = img.shape[1]
+        if h!=H:
+            w = int(w*H/h)
+            img = cv2.resize(img, (w, H), interpolation=cv2.INTER_CUBIC)
+        if img.dtype == np.float32: img = cv2.cvtColor(floatImg_to_intImg(img),cv2.COLOR_GRAY2RGB)        
+        img = cv2.applyColorMap(img, get_mpl_colormap(mcmap))
+        cv2.putText(img, txt, (5,25), cv2.FONT_HERSHEY_DUPLEX, 0.6, (0,0,0))
+        all_imgs.append(img)
+
+    return np.hstack(all_imgs)
+
+
+def get_mpl_colormap(cmap_name):
+    cmap = plt.get_cmap(cmap_name)
+
+    # Initialize the matplotlib color map
+    sm = plt.cm.ScalarMappable(cmap=cmap)
+
+    # Obtain linear color range
+    color_range = sm.to_rgba(np.linspace(0, 1, 256), bytes=True)[:,2::-1]
+
+    return color_range.reshape(256, 1, 3)
+
+def floatImg_to_intImg(img, scale_255=False, clip_on=True):
+    if scale_255: img = (255.0*img)
+    if clip_on: img = img.clip(0.0,255)
+    img = img.astype(np.uint8)
+    return img
 
 def get_unfolded_image(imgs, black_bg=False): #false before, does it cause any problems?
 
@@ -360,80 +390,6 @@ def lift_contours_to_3D(contours_px, xyz):
     return contours_3d
 
 
-"""
-def get_test_sample_names(species_names):
-    test_sample_names = []
-    BASE_PATH = os.getcwd().split('git')[0] + "Dropbox\\my_unet_data_
-    for name in species_names:
-        temp = []
-        file_path = BASE_PATH + name + "\\test_data_sample_names.txt"
-        if os.path.exists(file_path):
-            with open(file_path, 'r') as file:
-                temp = [line.strip() for line in file]
-        test_sample_names.extend(temp)
-    return test_sample_names
-
-
-def get_species_names_and_counts(foldernames):
-
-    species_names = []
-    species_counts = []
-    species_numbers = []
-    full_samples_names = []
-
-    for fon in foldernames:
-        match = re.match(r"([A-Z]+)(\d+)", fon)
-        if match:
-            spe_name = match.group(1)
-            spe_num  = match.group(2)
-            if spe_name not in species_names:
-                species_names.append(spe_name)
-                species_numbers.append([spe_num])
-                species_counts.append(1)
-            else:
-                si = species_names.index(spe_name)
-                species_numbers[si].append(spe_num)
-                species_counts[si] += 1
-            full_samples_names.append(spe_name+spe_num)
-
-
-    return species_names, species_numbers, species_counts, full_samples_names
-
-
-
-def get_hwd(imgs, print_hwd=False):
-
-    H,W = imgs[0].shape[:2]
-    D =   imgs[1].shape[0]
-
-    if print_hwd: print(H,W,D)
-
-    return H, W, D
-
-
-def get_block_side_contours(imgs, MIN_LEN_COUNTOUR, display=False):
-
-    contours_all = []
-
-    for i in range(6):
-        img = imgs[i]
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        ret, thresh = cv2.threshold(gray, 230, 255, cv2.THRESH_BINARY)
-        contours, hierarchy = cv2.findContours(image=thresh, mode=cv2.RETR_TREE, method=cv2.CHAIN_APPROX_NONE)
-        long_contours = []
-        for contour in contours:
-            if len(contour)>=MIN_LEN_COUNTOUR:
-                long_contours.append(contour)
-        contours_all.append(long_contours)
-
-        if display:
-            img_copy = img.copy()
-            cv2.drawContours(image=img_copy, contours=contours, contourIdx=-1, color=(0, 255, 0), thickness=2, lineType=cv2.LINE_AA)
-            cv2.imshow('None approximation', img_copy)
-            cv2.waitKey(0)
-
-    return contours_all
-
 def get_image_contours(img, out_torch=False, THRESHOLD=240, MIN_LEN_COUNTOUR=20, display=False):
 
     H = img.shape[0]
@@ -499,344 +455,6 @@ def get_closest_point_and_remove_from_array(point_array, point):
     return point_array, closest_point
 
 
-
-
-
-def find_indices_of_closest_nonsame_pair(value_list):
-
-    min_diff = 99999999
-    sel_i = -1
-    sel_j = -1
-
-    for i in range(len(value_list)):
-
-        for j in range(len(value_list)):
-
-            if i==j: continue #itself
-            if value_list[i]==value_list[j]: continue #same value
-
-            diff = abs(value_list[i]-value_list[j]) # difference
-
-            if diff<min_diff:
-                min_diff=diff
-                sel_i = i
-                sel_j = j
-
-    return sel_i, sel_j, min_diff
-
-
-def ordered_contours_by_distance(count_pxs, dst_imgs, tgt_imgs, params, threshold):
-
-    ages = []
-
-    H,W = dst_imgs[0].shape
-
-    dists = []
-    for con_pxs, dst_img in zip(count_pxs, dst_imgs):
-        if dst_img.requires_grad: dst_img = dst_img.detach()
-        temp = []
-        for cpx in con_pxs:
-            dsts = dst_img[cpx[:, 1], cpx[:, 0]]
-            dsts = dsts.numpy()
-            temp.append(dsts.mean())
-        dists.append(temp)
-
-    flat_dists = np.concatenate(dists)
-    continue_joining_IDs = True
-    cnt = 0
-
-    while continue_joining_IDs:
-
-        cnt+=1
-
-        # search for closest pair of distances
-        sel_i, sel_j, min_d = find_indices_of_closest_nonsame_pair(flat_dists)
-        if sel_i<0 or sel_j<0: break
-
-        # is the distance within a treshhold?
-        if min_d<threshold and cnt<200:
-
-            # take the average value of all numbers with the same new ID - overvrite the distnace with that average distance for that ID
-            grouped_inds = []
-            grouped_dists = []
-            for i in range(len(flat_dists)):
-                if flat_dists[i] == flat_dists[sel_i] or flat_dists[i] == flat_dists[sel_j]:
-                    grouped_dists.append(flat_dists[i])
-                    grouped_inds.append(i)
-
-            group_mean_dist = sum(grouped_dists)/len(grouped_dists)
-
-            # overwrite group items with average distance
-            for i in grouped_inds: flat_dists[i] = group_mean_dist
-
-        else:
-            if cnt>=200: print("Stopping at cnt", cnt)
-            continue_joining_IDs = False
-
-    unique_values, order_indices = np.unique(flat_dists, return_inverse=True)
-
-    year_offset = int( flat_dists.min())
-
-    id_list = []
-    cnt = 0
-    dists2 = []
-    for i in range(len(dists)):
-        temp = []
-        temp2 = []
-        for j in range(len(dists[i])):
-            d = flat_dists[cnt]
-            index = np.argmax(unique_values == d)
-            temp.append(index+year_offset)
-            temp2.append(d)
-            cnt+=1
-        id_list.append(temp)
-        dists2.append(temp2)
-
-
-
-    #yrs
-    yr_list = id_list
-    #for ids in id_list:
-    #    temp = []
-    #    for id in ids:
-    #        temp.append(year_offset+1)
-    #    yr_list.append(temp)
-
-
-    # countour images
-    #n_colors = 20
-    #color_list = (255*cm.tab20(np.linspace(0, 1, n_colors))).astype(np.uint8)
-
-    #n_colors = max(max(id_list))+2
-    #color_list = (255*cm.cool(np.linspace(0, 1, n_colors))).astype(np.uint8)
-
-    n_colors = 8
-    color_list = (255*cm.viridis(np.linspace(0, 1, n_colors))).astype(np.uint8)
-
-    cimgs = []
-    for j in range(6):
-        #img_copy = 255*np.ones([H,W,3]).astype(np.uint8)
-        tgt_img = tgt_imgs[j]
-        #if dst_img.requires_grad: dst_img = dst_img.detach()
-        #img_dist = (255.0*img_dist.clone().numpy()).astype(np.uint8)
-        tgt_img = cv2.cvtColor(tgt_img, cv2.COLOR_GRAY2BGR)
-
-        for contour,id,yr,d in zip(count_pxs[j],id_list[j],yr_list[j],dists2[j]):
-            contour = contour.numpy()
-            col_id = id
-            if col_id>n_colors-1: col_id = id%n_colors
-            col = color_list[col_id]
-            #c = int(255*d)
-            #col = np.array([c,c,c]).astype(np.uint8)
-            col = tuple([int(x) for x in col])
-            cv2.polylines(tgt_img, [contour], isClosed=False, color=col, thickness=2)
-
-            # add text
-            txt = str(yr)
-            font = cv2.FONT_HERSHEY_SIMPLEX # font
-            org = contour[0] # org
-            fontScale = 0.4 # fontScale
-            color = (0, 0, 255)
-            thickness = 1
-            image = cv2.putText(tgt_img, txt, org, font, fontScale, color, thickness, cv2.LINE_AA)
-
-        cimgs.append(tgt_img)
-
-
-
-
-    return yr_list, cimgs
-
-
-def get_gradient_magnitude_image(img, display=False):
-
-    gradient_x, gradient_y = torch.gradient(img)
-    gradient_magnitude_img = torch.norm(torch.stack([gradient_x, gradient_y], dim=0), p=2, dim=0)
-
-    if display:
-
-        img = gradient_magnitude_img.detach().numpy()
-        img = image_utils.floatImg_to_intImg(img)
-        img = cv2.applyColorMap(img, cv2.COLORMAP_COOL)
-        cv2.imshow("Gradient magnitude image", img)
-        cv2.waitKey(1)
-
-    return gradient_magnitude_img
-
-def min_filter(image, kernel_size):
-    # Add batch and channel dimensions for convolution
-    image = image.unsqueeze(0).unsqueeze(0)
-
-    # Define a kernel with ones of size kernel_size
-    kernel = torch.ones(1, 1, kernel_size, kernel_size, dtype=image.dtype).to(image.device)
-
-    # Use convolution with 'valid' padding to compute the minimum value
-    min_values = F.conv2d(image, kernel, padding=0, stride=1)
-
-    # Remove batch and channel dimensions to get the result as [256, 256]
-    min_values = min_values.squeeze(0).squeeze(0)
-
-    return min_values
-
-def max_filter(image, kernel_size):
-    # Add batch and channel dimensions for convolution
-    image = image.unsqueeze(0).unsqueeze(0)
-
-    # Use max pooling operation with kernel_size
-    max_values = F.max_pool2d(image, kernel_size, padding=(kernel_size//2), stride=1)
-
-    # Remove batch and channel dimensions to get the result as [256, 256]
-    max_values = max_values.squeeze(0).squeeze(0)
-
-    return max_values
-
-def gaussian_blur(input_image, kernel_size=5, sigma=1.0):
-
-
-    #image = image.unsqueeze(0).unsqueeze(0)
-    #gaussian_blur_filter = v2.GaussianBlur(kernel_size=(5,5), sigma=(0.1, 2.0) )
-    #blurred_image = gaussian_blur_filter(image)
-    #blurred_img = F.gaussian_blur(image, kernel_size=(5,5), sigma=(0.1,2.0))
-    #gaussian_blur_layer = T.GaussianBlur(kernel_size=(5, 5), sigma=(1.0, 1.0))
-    #blurred_image = gaussian_blur_layer(image)
-
-    padding = kernel_size // 2
-    x = torch.arange(-padding, padding + 1, dtype=torch.float32)
-    y = x.view(-1, 1)
-    kernel = torch.exp(-(x**2 + y**2) / (2.0 * sigma**2))
-    kernel = kernel / kernel.sum()
-    kernel = kernel.view(1, 1, kernel_size, kernel_size).to(input_image)
-
-    blurred_image = F.conv2d(input_image.unsqueeze(0).unsqueeze(0), kernel, padding=padding)
-    blurred_image = blurred_image.squeeze()
-
-    return blurred_image
-
-
-def plot_image(img, ax):
-
-    ax.imshow(img)
-
-    ax.set_xticks([])
-    ax.set_yticks([])
-
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['bottom'].set_visible(False)
-    ax.spines['left'].set_visible(False)
-
-def get_3D_image_pixel_positions(imgs, noramlized=False):
-
-    xyzs = []
-    IMG_SIZE = imgs[0].shape[0]
-
-    for i in range(6):
-        img = imgs[i]
-        xy = np.indices(img[:,:,0].shape)
-        z = np.expand_dims(xy[0,:], axis=0)
-        xyz = np.vstack((xy, z))
-        xyz[2] = 0
-        if i==0: #A
-            xyz[2] = IMG_SIZE-1 #zmax
-            xyz[1] = np.flip(xyz[1], axis=1) # flip y
-        if i==1: #B
-            xyz[2] = IMG_SIZE-1 #zmax
-            xyz[:2] = np.flip(xyz[:2], axis=1) # flip x and y
-            xyz[1], xyz[2] = xyz[2].copy(), xyz[1].copy() # swap y and z
-            xyz[2] = np.flip(xyz[2], axis=1) # flip z
-        if i==2:
-            xyz[:2] = np.flip(xyz[:2], axis=1) # flip x and y
-            xyz[0], xyz[2] = xyz[2].copy(), xyz[0].copy()
-            xyz[1], xyz[2] = xyz[2].copy(), -xyz[1].copy() # rotate 90 degrees around x-axis
-        if i==3:
-            xyz[0] = np.flip(xyz[0], axis=1) # flip x
-            xyz[1], xyz[2] = xyz[2].copy(), xyz[1].copy() # swap y and z
-            xyz[2] = np.flip(xyz[2], axis=1) # flip z
-        if i==4:
-            xyz[2] = IMG_SIZE-1 #zmax
-            xyz[0], xyz[2] = xyz[2].copy(), xyz[0].copy() # swap x and z
-            xyz[1], xyz[2] = xyz[2].copy(), -xyz[1].copy() # rotate 90 degrees around x-axis
-            xyz[0] = np.flip(xyz[0], axis=1) # flip x
-        if i==5:
-            xyz[1] = np.flip(xyz[1], axis=1) # flip y
-
-        if noramlized:
-            xyz = xyz/IMG_SIZE-0.5
-        xyzs.append(np.transpose(xyz))
-
-    return xyzs
-
-def plot_3D_images(imgs,xyzs,ax):
-
-    IMG_SIZE = imgs[0].shape[0]
-
-    # Create axis
-    axes = [IMG_SIZE, IMG_SIZE, IMG_SIZE]
-
-    # Create Data
-    data = np.ones(axes, dtype=bool)
-    data[1:-1, 1:-1, 1:-1] = False # Set non-edge voxels in the data array to False
-
-    # Control Transparency
-    alpha = 0.5
-
-    # Initiate colors
-    colors = np.zeros(axes + [4], dtype=np.float32)
-
-    for i in range(6):
-
-        #img = cv2.cvtColor(imgs[i], cv2.COLOR_RGB2RGBA)
-        #img[3] = 0.2 #alpha channel
-        b_ch, g_ch, r_ch = cv2.split(imgs[i])
-        a_ch = np.ones(b_ch.shape, dtype=b_ch.dtype)*255
-        img = cv2.merge((b_ch, g_ch, r_ch, a_ch))
-
-        colors_array = img.reshape(-1,4)
-        colors_array = colors_array / 255.0
-        positions_array = xyzs[i].reshape(-1,3)
-
-        # Assign colors to the corresponding positions
-        colors[positions_array[..., 0], positions_array[..., 1], positions_array[..., 2]] = colors_array
-
-
-    # Voxels is used to customizations of
-    # the sizes, positions and colors.
-    ax.voxels(data, facecolors=colors, edgecolors=None)
-
-
-def get_3D_contours(contours_all, xyzs):
-
-    contours_3d = []
-
-    for i in range(6):
-        xyz = xyzs[i]
-
-        for cont in contours_all[i]:
-            cpts = cont.squeeze()
-            plt_pts = np.zeros((cpts.shape[0],3))
-
-            for k in range(len(cpts)):
-                pt = cpts[k]
-                plt_pts[k] = xyz[pt[0],pt[1],:]
-            contours_3d.append(plt_pts)
-
-    return contours_3d
-
-def plot_3D_contours(contours_3d, ax):
-
-    for plt_pts in contours_3d:
-
-        plt_pts = np.array(plt_pts).transpose()
-        x = plt_pts[0].flatten()
-        y = plt_pts[1].flatten()
-        z = plt_pts[2].flatten()
-        ax.plot(x, y, z, c='blue', linewidth=2)
-        ax.scatter(x, y, z, c='blue', s=6.0, depthshade=False)
-
-
-
-
-
 def get_peak_centers_from_1d_gray_colormap(signal,params):
 
     threshold = signal.mean()
@@ -874,4 +492,47 @@ def get_peak_centers_from_1d_gray_colormap(signal,params):
 
     
     return peak_centers
-"""
+
+
+
+def get_ranges(params, out_img_coords):
+    all_heights = []
+    all_angles = []
+    all_radiuses = []
+    for j,px_coords in enumerate(out_img_coords):
+        px_coords = px_coords.view(-1,3)
+        heights, angles, radiuses = procedural_wood_function_for_initialization(params, px_coords, A=256, B=256, return_reshaped=True, return_cylindrical_coords=True)
+        all_heights.extend(heights.numpy().tolist())
+        all_angles.extend(angles.numpy().tolist())
+        all_radiuses.extend(radiuses.numpy().tolist())
+
+    # get height range and ring range
+    height_range = [min(all_heights), max(all_heights)]
+    ring_range = [min(all_radiuses), max(all_radiuses)]
+
+    # get spoke range
+    # sort angles and get rough middle
+    all_angles = np.array(all_angles)
+    sorted_angles = np.sort(all_angles)
+    a_middele_angle = sorted_angles[int(0.5*sorted_angles.shape[0])]
+
+    # offset angles by 180 degrees from center of rough middle
+    offset = (a_middele_angle + torch.pi) % (2*torch.pi)
+    all_angles = np.mod(all_angles + offset, 2*torch.pi)
+
+    # get refined offset
+    sorted_angles = np.sort(all_angles)
+    a_middele_angle_2 = sorted_angles[int(0.5*sorted_angles.shape[0])]
+    refined_offset = (a_middele_angle_2 - a_middele_angle - offset + 2*torch.pi) % (2*torch.pi)
+
+    # apply refined offset
+    offset = (offset + refined_offset + 2*torch.pi) % (2*torch.pi)
+    all_angles = np.mod(all_angles + refined_offset + 2*torch.pi, 2*torch.pi)
+
+    # calcualte min/max
+    spoke_min = all_angles.min()
+    spoke_max = all_angles.max()
+
+    spoke_range = [spoke_min, spoke_max, offset] #radians
+    
+    return height_range, spoke_range, ring_range

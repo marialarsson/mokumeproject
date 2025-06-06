@@ -49,9 +49,9 @@ class ProceduralParameters:
         self.pith_direction = torch.tensor([-0.0000001, 1.0, 0.000001])
         self.update_ref_vec()
     
-    def update_init_pith_parameters(self, X):
-        self.pith_origin = X[:3] # origin
-        temp_pith_dir = X[3:6]
+    def update_init_pith_parameters(self, O, V):
+        self.pith_origin = O 
+        temp_pith_dir = V
         self.pith_direction = temp_pith_dir / ( temp_pith_dir.norm() + 1e-8 )
         self.update_ref_vec()
     
@@ -117,14 +117,14 @@ class ProceduralParameters:
 
     ### INTENSITY FIELD (ARF) GREY-SCALE COLORS ###
 
-    def update_average_arf_color(self, col):
-        self.average_arf_col = col
+    def update_average_arl_color(self, col):
+        self.average_arl_col = col
     
-    def update_base_arf_color_bar(self, length):
-        self.base_arf_color_bar = self.average_arf_col.repeat(length)
+    def update_base_arl_color_bar(self, length):
+        self.base_arl_color_bar = self.average_arl_col.repeat(length)
 
-    def update_arf_color_bar(self, X):
-        self.arf_color_bar = self.base_arf_color_bar + X
+    def update_arl_color_bar(self, X):
+        self.arl_color_bar = self.base_arl_color_bar + X
 
     ### COLORS - COLOR BAR ###
     def update_base_color_bar(self, X):
