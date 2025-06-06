@@ -23,13 +23,19 @@ We demonstrate the synergy between the Mokume dataset and the proposed algorithm
 
 ### Environment setup
 
-...
+- Python 3.13.0
 
-...
+- PyTorch 2.7.1, CUDA 11.8
 
-...
+- Opencv 4.11.0
 
-...
+- matplotlib 3.10.3
+
+- tqdm 4.67.1
+
+- ...
+
+- ...
 
 ### System Outline
 
