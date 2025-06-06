@@ -39,12 +39,13 @@ def main():
     DATA_FOLDER_PATH = "Samples\\"
 
     # Optimization parameters
-    PITH_ITER_NUM = 100 # number of iterations for optimization of growth field PITH AXIS
-    DIST_ITER_NUM = 100 # number of iterations for optimization of growth field DISTORTIONS
+    PITH_ITER_NUM = 20 # number of iterations for optimization of growth field PITH AXIS
+    DIST_ITER_NUM = 20 # number of iterations for optimization of growth field DISTORTIONS
     ITER_NUM = PITH_ITER_NUM + DIST_ITER_NUM
     LEARNING_RATE = 0.2
     PITH_LAMBDA = 0.0002 
     DIST_LAMBDA = 0.1
+    PITH_STAGE = True
 
     # Resolution of R
     HEIGHT_NUM = 8
@@ -77,7 +78,7 @@ def main():
     colImage_loss_log = []
     regularization_log = []
     best_i = 0
-    min_loss = torch.tensor(99999.9)
+    min_loss = 99999.9
     grad_des_optim = False
 
     # Initialize parmameter class
@@ -96,11 +97,6 @@ def main():
     params.update_init_pith_parameters(OVs[0][0],OVs[0][1])
     VL0s = [(index + 1) for index in range(len(OVs))]     # Vertical lines at discontinous search points for displaying in plot
 
-    # Initiate R
-    R = torch.zeros(HEIGHT_NUM,AZIMUTH_NUM,RADIUS_NUM)
-    height_range, spoke_range, ring_range = data_utils.get_ranges(params, out_img_coords, ABs, ARF_TYPE)        
-    params.init_refined_procedual_parameters(HEIGHT_NUM, height_range, AZIMUTH_NUM, spoke_range, RADIUS_NUM, ring_range)
-    params.update_spoke_rads(R)
 
     """
     # Check for knot
@@ -142,17 +138,19 @@ def main():
         params.update_simple_colors(simple_colors)
         simple_colors.requires_grad_()"""
     
-    # Initialize arf bar
-    params.update_average_arf_color(torch.tensor(target_data.average_arl_color/255.0))
-    M = torch.zeros(256) #M is the annual ring localization 1D greymap
-    params.update_base_arl_color_bar(length=M.size()[0])
+    KNOT = False
+    
 
     # Optimization loop 
     for i in tqdm(range(ITER_NUM), desc=SAMPLE_NAME):
 
-        if i<len(OVs): # If initial discontinous grid search stage
+        
+        # If initial discontinous grid search stage
+        if i<len(OVs): 
             O,V = OVs[i]
-        elif i==len(OVs): # Else if first iteration of pith after discontious grid search
+
+        # Else if first iteration of pith after discontious grid search
+        elif i==len(OVs): 
             grad_des_optim = True
             O,V = best_OV # Reinstate the best initial pith axis
             O = torch.from_numpy(O)
@@ -160,45 +158,114 @@ def main():
             O.requires_grad_()
             V.requires_grad_()
             optimizer = Adam([O,V], lr=LEARNING_RATE)
-        elif i==PITH_ITER_NUM: # Else if first iteration of distrotions
+
+        # Else if first iteration of distrotions
+        elif i==PITH_ITER_NUM: 
+            PITH_STAGE = False
+            O.requires_grad_(False)
+            V.requires_grad_(False)
+            del optimizer
+            # Initiate R
+            R = torch.zeros(HEIGHT_NUM,AZIMUTH_NUM,RADIUS_NUM)
+            height_range, spoke_range, ring_range = data_utils.get_ranges(params, out_img_coords, dim)        
+            params.init_refined_procedual_parameters(HEIGHT_NUM, height_range, AZIMUTH_NUM, spoke_range, RADIUS_NUM, ring_range)
+            params.update_spoke_rads(R)
+            # Initialize arl bar
+            params.update_average_arl_color(torch.tensor(target_data.average_arl_color/255.0))
+            M = torch.zeros(256) #M is the annual ring localization 1D greymap
+            params.update_base_arl_color_bar(length=M.size()[0])
             R.requires_grad_()
             M.requires_grad_()
+            #if KNOT: optimizer = Adam([R, M, RK, CM], lr=LEARNING_RATE)
+            optimizer = Adam([R, M], lr=LEARNING_RATE)
 
         # Update parameters
-        params.update_init_pith_parameters(O,V)
+        if PITH_STAGE:
+            params.update_init_pith_parameters(O,V)
+        else:
+            params.update_spoke_rads(R)
+            params.update_arl_color_bar(M)
+            #params.update_knot_deform_parameters(RK)
 
         # Apply procedural funciton
         img_gtfs = []
+        img_arls = []
+        #img_cols = []
 
+        axes = [2,1,0,1,0,2]
         for j,px_coords in enumerate(out_img_coords):
 
+            ax = axes[j]
             px_coords = px_coords.view(-1,3)
 
+            # growth field
+            #if PITH_STAGE:
             img_gtf = procedural_wood_function_for_initialization(params, px_coords, A=dim, B=dim, return_reshaped=True)
+            #else:
+            #    img_gtf = procedural_wood_function_for_refinement(params, px_coords, A=dim, B=dim, return_reshaped=True, show_knot=KNOT)
             img_gtfs.append(img_gtf)
+
+            #if not PITH_STAGE:
+            #    #annual ring localization image
+            #    img_arl, _ = procedural_wood_function_refined_and_with_rings(params, px_coords, side_index=j, surface_normal_axis=ax, A=dim, B=dim, return_reshaped=True, show_knot=KNOT)
+            #    img_arls.append(img_arl)
+
+            #color map image
+            #img_col = procedural_wood_function_knot_only(params, px_coords, side_index=j, side_axis=ax, A=A, B=B, return_reshaped=True)
+            #img_cols.append(img_col)
         
         output_data.update_gtf_imgs_from_torch(img_gtfs)
         output_data.update_gtf_map_imgs(with_contours=False)
+        #output_data.update_arl_imgs_from_torch(img_arls)
+        #output_data.update_rgb_imgs_from_torch(img_cols)
 
         # Compute the iso contour loss
         isoContour_loss = 0
-        loss_imgs = []
+        locImage_loss = 0
+        colImage_loss = 0
+        isoContour_loss_imgs = []
+        #locImage_loss_imgs = []
+        #colImage_loss_imgs = []
 
         for j in range(6):
 
             tgt_pxs = target_data.contour_pixels[j]
             tgt_pos = target_data.contour_positions[j]
 
-            loss_value, loss_img_loc = loss_utils.iso_contour_loss(tgt_pxs, tgt_pos, params, dim, dim)
-            isoContour_loss += loss_value
-            loss_imgs.append(loss_img_loc)
+            #isoContour loss
+            #loss_value, loss_img_loc = loss_utils.iso_contour_loss(tgt_pxs, tgt_pos, params, dim, dim, init_stage=PITH_STAGE, show_knot=KNOT)
+            loss_value, loss_img_loc = loss_utils.iso_contour_loss(tgt_pxs, tgt_pos, params, dim, dim, init_stage=True, show_knot=KNOT)
 
-        loss = isoContour_loss
-        output_data.update_loss_imgs_from_np(loss_imgs)
+            isoContour_loss += 10*loss_value
+            isoContour_loss_imgs.append(loss_img_loc)
+
+            #annual ring localization image loss
+            #loss_value, loss_img_loc = loss_utils.image_loss(output_data.arl_imgs_torch[j], target_data.arl_imgs_torch[j])
+            #locImage_loss += loss_value
+            #locImage_loss_imgs.append(loss_img_loc)
+
+            #color image loss
+            #loss_value, loss_img_loc = loss_utils.image_loss(output_data.rgb_imgs_torch[j], target_data.rgb_imgs_torch[j])
+            #colImage_loss += loss_value
+            #colImage_loss_imgs.append(loss_img_loc)
+            
+        if PITH_STAGE:  loss = isoContour_loss
+        else:           loss = isoContour_loss #+ locImage_loss #+colImage_loss
+
+        output_data.update_loss_imgs_from_np(isoContour_loss_imgs)
+        #output_data.update_loss_imgs_from_np(locImage_loss_imgs, index=1)
+        #output_data.update_loss_imgs_from_np(colImage_loss_imgs, index=2)
 
         # Add regularization term
-        regularization_term = LAMBDA * ( (O ** 2).sum() + (V ** 2).sum())
-        regularization_log.append(float(regularization_term.detach()))
+        regularization_term = 0
+        #if PITH_STAGE:
+        #    regularization_term += PITH_LAMBDA * ( (O ** 2).sum() + (V ** 2).sum())
+        #else:
+        #    regularization_term += 0.1 * DIST_LAMBDA*torch.pow(M,2).mean()
+        #    regularization_term += DIST_LAMBDA * opti_utils.regularization_of_deformations(R)
+        #    #if KNOT: 
+        #    #    regularization_term += DIST_LAMBDA*torch.pow(RK,2).mean()
+        #    #    regularization_term += DIST_LAMBDA*torch.pow(CM,2).mean()
         loss += regularization_term
         
         if grad_des_optim:
@@ -206,16 +273,20 @@ def main():
             loss.backward()
             optimizer.step()
 
+
         ####################################################################
 
         # If lower loss
-        if loss<min_loss:
+        if loss.item() < min_loss:
             best_OV = [O.detach().numpy(), V.detach().numpy()]
             min_loss = loss.detach()
             best_i = i
         
         # Append loss logs
         isoContour_loss_log.append(float(isoContour_loss))
+        #locImage_loss_log.append(float(locImage_loss))
+        #colImage_loss_log.append(float(colImage_loss))
+        #regularization_log.append(float(regularization_term.detach()))
         loss_log.append(float(loss))
 
         # Show intermediate output images and plot optimization progress

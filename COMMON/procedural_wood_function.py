@@ -170,7 +170,7 @@ def mix(A, B, mix_factors):
     return A_expanded * (1.0 - mix_factors_expanded) + B_expanded * mix_factors_expanded
 ##################
 
-def procedural_wood_function_for_initialization(params, px_coords, A=0, B=0, return_reshaped=False, arf_type=0, return_cylindrical_coords=False):
+def procedural_wood_function_for_initialization(params, px_coords, A=0, B=0, return_reshaped=False, arl_type=0, return_cylindrical_coords=False):
 
     # Calculate distance between pixel coordinates and closest point on the pith axis
     pith_closest_pts = closest_points_on_ray(params.pith_origin, params.pith_direction, px_coords)
@@ -309,13 +309,13 @@ def procedural_wood_function_refined_and_with_rings(params, px_coords, side_inde
     # sample color bar
     gtf = (gtf - params.ring_min) / (params.ring_max - params.ring_min)
     gtf = torch.clamp(gtf,0.0,1.0)
-    gtf *= len(params.arf_color_bar) - 2
+    gtf *= len(params.arl_color_bar) - 2
     
     inds_floor = torch.floor(gtf).long()
-    inds_floor = torch.clamp(inds_floor, 0, params.arf_color_bar.size()[0]-2)
+    inds_floor = torch.clamp(inds_floor, 0, params.arl_color_bar.size()[0]-2)
     inds_ceil = inds_floor + 1
     frac = gtf - inds_floor.float()
-    cols = (1 - frac) * params.arf_color_bar[inds_floor] + frac * params.arf_color_bar[inds_ceil]
+    cols = (1 - frac) * params.arl_color_bar[inds_floor] + frac * params.arl_color_bar[inds_ceil]
         
     if not return_reshaped: return cols, gtf
 

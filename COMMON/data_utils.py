@@ -1,14 +1,10 @@
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torchvision.transforms as T
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib import cm
-import sys
 import cv2
 from matplotlib.backends.backend_agg import FigureCanvasAgg
+
+from procedural_wood_function import *
 
 torch.pi = torch.acos(torch.zeros(1)).item() * 2
 torch.set_default_dtype(torch.float32)
@@ -495,16 +491,21 @@ def get_peak_centers_from_1d_gray_colormap(signal,params):
 
 
 
-def get_ranges(params, out_img_coords):
+def get_ranges(params, out_img_coords, dim):
     all_heights = []
     all_angles = []
     all_radiuses = []
     for j,px_coords in enumerate(out_img_coords):
         px_coords = px_coords.view(-1,3)
-        heights, angles, radiuses = procedural_wood_function_for_initialization(params, px_coords, A=256, B=256, return_reshaped=True, return_cylindrical_coords=True)
-        all_heights.extend(heights.numpy().tolist())
-        all_angles.extend(angles.numpy().tolist())
-        all_radiuses.extend(radiuses.numpy().tolist())
+        heights, angles, radiuses = procedural_wood_function_for_initialization(params, px_coords, A=dim, B=dim, return_reshaped=True, return_cylindrical_coords=True)
+        try:
+            all_heights.extend(heights.numpy().tolist())
+            all_angles.extend(angles.numpy().tolist())
+            all_radiuses.extend(radiuses.numpy().tolist())
+        except:
+            all_heights.extend(heights.detach().numpy().tolist())
+            all_angles.extend(angles.detach().numpy().tolist())
+            all_radiuses.extend(radiuses.detach().numpy().tolist())
 
     # get height range and ring range
     height_range = [min(all_heights), max(all_heights)]
