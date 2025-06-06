@@ -1,22 +1,6 @@
 import torch
-from torch.optim import SGD
 torch.pi = torch.acos(torch.zeros(1)).item() * 2
-import numpy as np
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib import cm
 import sys
-import cv2
-import os
-import time
-import math
-from datetime import datetime
-import argparse
-import copy
-import random
-
-sys.path.append("COMMON")
-import image_utils
 
 torch.autograd.set_detect_anomaly(True)
 torch.set_default_dtype(torch.float32)

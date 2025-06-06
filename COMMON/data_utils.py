@@ -129,14 +129,13 @@ def xyz_coords(A,B,C,scale_factor,insert_position):
 
 
 
-def get_plot_image(loss_logs, loss_lbls, reg_log, best_i, best_loss, N, H=256, VL0s=[9999999], VL1s=[9999999], VL2s=[9999999], VL1=999999, VL2=999999, VL3=999999, display=False, simple=False, ymax=-1.0, id=-1):
+def get_plot_image(loss_logs, loss_lbls, reg_log, best_i, best_loss, N, H=256, VL0s=[9999999], VL1s=[9999999], VL2s=[9999999], VL1=999999, VL2=999999, VL3=999999, display=False, ymax=-1.0, id=-1):
 
     plt.clf()
     plt.figure(figsize=(6,4))
 
     for i, loss_log in enumerate(loss_logs):
 
-        if simple and i>0: break
         lbl = loss_lbls[i]
         lw = 1.0
         if i==0: plt.plot(loss_log, label=lbl,  linewidth=2.0, color='k')
@@ -152,13 +151,14 @@ def get_plot_image(loss_logs, loss_lbls, reg_log, best_i, best_loss, N, H=256, V
     plt.axvline(x=VL1, color='lime', linestyle='dashed')
     plt.axvline(x=VL2, color='orchid', linestyle='dashed')
 
-    if not simple: plt.plot(reg_log, label='Reg. term',  linewidth=1.0)
+    if len(reg_log)>0: plt.plot(reg_log, label='Reg. term',  linewidth=1.0)
     plt.scatter(best_i, float(best_loss), 50, marker='o', color='k')
 
     plt.tight_layout()
     plt.legend()
     plt.xlim([0,N-1])
     if ymax>0: plt.ylim([0.0, ymax])
+    else: plt.ylim(bottom=0.0)
 
     plt_name = 'tmp_plt'
     if id>0: plt_name += str(id)
@@ -202,7 +202,8 @@ def assemble_images(imgs, txts, map_imgs, map_txts, map_cmaps, H):
                 img = cv2.cvtColor(floatImg_to_intImg(img),cv2.COLOR_GRAY2RGB)
         img = img.astype(np.uint8)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        cv2.putText(img, txt, (5,25), cv2.FONT_HERSHEY_DUPLEX, 0.6, (0,0,0))
+        cv2.putText(img, txt, (5,25), cv2.FONT_HERSHEY_DUPLEX, 0.6, (255,255,255), thickness=2) # Outline (white, thicker)
+        cv2.putText(img, txt, (5,25), cv2.FONT_HERSHEY_DUPLEX, 0.6, (0,0,0), thickness=1) # Main text (black, normal)
         all_imgs.append(img)
 
     for i, (img, txt, mcmap) in enumerate(zip(map_imgs, map_txts, map_cmaps)):
@@ -213,7 +214,8 @@ def assemble_images(imgs, txts, map_imgs, map_txts, map_cmaps, H):
             img = cv2.resize(img, (w, H), interpolation=cv2.INTER_CUBIC)
         if img.dtype == np.float32: img = cv2.cvtColor(floatImg_to_intImg(img),cv2.COLOR_GRAY2RGB)        
         img = cv2.applyColorMap(img, get_mpl_colormap(mcmap))
-        cv2.putText(img, txt, (5,25), cv2.FONT_HERSHEY_DUPLEX, 0.6, (0,0,0))
+        cv2.putText(img, txt, (5,25), cv2.FONT_HERSHEY_DUPLEX, 0.6, (255,255,255), thickness=2) # Outline (white, thicker)
+        cv2.putText(img, txt, (5,25), cv2.FONT_HERSHEY_DUPLEX, 0.6, (0,0,0), thickness=1) # Main text (black, normal)
         all_imgs.append(img)
 
     return np.hstack(all_imgs)

@@ -39,10 +39,10 @@ def main():
     DATA_FOLDER_PATH = "Samples\\"
 
     # Optimization parameters
-    PITH_ITER_NUM = 20 # number of iterations for optimization of growth field PITH AXIS
-    DIST_ITER_NUM = 20 # number of iterations for optimization of growth field DISTORTIONS
+    PITH_ITER_NUM = 50 # number of iterations for optimization of growth field PITH AXIS
+    DIST_ITER_NUM = 50 # number of iterations for optimization of growth field DISTORTIONS
     ITER_NUM = PITH_ITER_NUM + DIST_ITER_NUM
-    LEARNING_RATE = 0.2
+    LEARNING_RATE = 0.02
     PITH_LAMBDA = 0.0002 
     DIST_LAMBDA = 0.1
     PITH_STAGE = True
@@ -74,12 +74,12 @@ def main():
     # Initialize lists for optimization
     loss_log = []
     isoContour_loss_log = []
-    locImage_loss_log = []
+    arlImage_loss_log = []
     colImage_loss_log = []
     regularization_log = []
     best_i = 0
     min_loss = 99999.9
-    grad_des_optim = False
+    CONT_OPTIM = False
 
     # Initialize parmameter class
     params = ProceduralParameters()
@@ -151,7 +151,7 @@ def main():
 
         # Else if first iteration of pith after discontious grid search
         elif i==len(OVs): 
-            grad_des_optim = True
+            CONT_OPTIM = True
             O,V = best_OV # Reinstate the best initial pith axis
             O = torch.from_numpy(O)
             V = torch.from_numpy(V)
@@ -162,8 +162,10 @@ def main():
         # Else if first iteration of distrotions
         elif i==PITH_ITER_NUM: 
             PITH_STAGE = False
+            min_loss = 9999.99
             O.requires_grad_(False)
             V.requires_grad_(False)
+            params.update_init_pith_parameters(O,V)
             del optimizer
             # Initiate R
             R = torch.zeros(HEIGHT_NUM,AZIMUTH_NUM,RADIUS_NUM)
@@ -199,16 +201,15 @@ def main():
             px_coords = px_coords.view(-1,3)
 
             # growth field
-            #if PITH_STAGE:
-            img_gtf = procedural_wood_function_for_initialization(params, px_coords, A=dim, B=dim, return_reshaped=True)
-            #else:
-            #    img_gtf = procedural_wood_function_for_refinement(params, px_coords, A=dim, B=dim, return_reshaped=True, show_knot=KNOT)
+            if PITH_STAGE:  img_gtf = procedural_wood_function_for_initialization(params, px_coords, A=dim, B=dim, return_reshaped=True)
+            else:           img_gtf = procedural_wood_function_for_refinement(params, px_coords, A=dim, B=dim, return_reshaped=True, show_knot=KNOT)
+            
             img_gtfs.append(img_gtf)
 
-            #if not PITH_STAGE:
-            #    #annual ring localization image
-            #    img_arl, _ = procedural_wood_function_refined_and_with_rings(params, px_coords, side_index=j, surface_normal_axis=ax, A=dim, B=dim, return_reshaped=True, show_knot=KNOT)
-            #    img_arls.append(img_arl)
+            if not PITH_STAGE:
+                #annual ring localization image
+                img_arl, _ = procedural_wood_function_refined_and_with_rings(params, px_coords, side_index=j, surface_normal_axis=ax, A=dim, B=dim, return_reshaped=True, show_knot=KNOT)
+                img_arls.append(img_arl)
 
             #color map image
             #img_col = procedural_wood_function_knot_only(params, px_coords, side_index=j, side_axis=ax, A=A, B=B, return_reshaped=True)
@@ -216,15 +217,15 @@ def main():
         
         output_data.update_gtf_imgs_from_torch(img_gtfs)
         output_data.update_gtf_map_imgs(with_contours=False)
-        #output_data.update_arl_imgs_from_torch(img_arls)
+        output_data.update_arl_imgs_from_torch(img_arls)
         #output_data.update_rgb_imgs_from_torch(img_cols)
 
         # Compute the iso contour loss
         isoContour_loss = 0
-        locImage_loss = 0
-        colImage_loss = 0
+        arlImage_loss = 0
+        #colImage_loss = 0
         isoContour_loss_imgs = []
-        #locImage_loss_imgs = []
+        arlImage_loss_imgs = []
         #colImage_loss_imgs = []
 
         for j in range(6):
@@ -233,16 +234,15 @@ def main():
             tgt_pos = target_data.contour_positions[j]
 
             #isoContour loss
-            #loss_value, loss_img_loc = loss_utils.iso_contour_loss(tgt_pxs, tgt_pos, params, dim, dim, init_stage=PITH_STAGE, show_knot=KNOT)
-            loss_value, loss_img_loc = loss_utils.iso_contour_loss(tgt_pxs, tgt_pos, params, dim, dim, init_stage=True, show_knot=KNOT)
+            loss_value, loss_img_loc = loss_utils.iso_contour_loss(tgt_pxs, tgt_pos, params, dim, dim, init_stage=PITH_STAGE, show_knot=KNOT)
 
             isoContour_loss += 10*loss_value
             isoContour_loss_imgs.append(loss_img_loc)
 
             #annual ring localization image loss
-            #loss_value, loss_img_loc = loss_utils.image_loss(output_data.arl_imgs_torch[j], target_data.arl_imgs_torch[j])
-            #locImage_loss += loss_value
-            #locImage_loss_imgs.append(loss_img_loc)
+            loss_value, loss_img_loc = loss_utils.image_loss(output_data.arl_imgs_torch[j], target_data.arl_imgs_torch[j])
+            arlImage_loss += loss_value
+            arlImage_loss_imgs.append(loss_img_loc)
 
             #color image loss
             #loss_value, loss_img_loc = loss_utils.image_loss(output_data.rgb_imgs_torch[j], target_data.rgb_imgs_torch[j])
@@ -250,25 +250,25 @@ def main():
             #colImage_loss_imgs.append(loss_img_loc)
             
         if PITH_STAGE:  loss = isoContour_loss
-        else:           loss = isoContour_loss #+ locImage_loss #+colImage_loss
+        else:           loss = isoContour_loss + arlImage_loss #+colImage_loss
 
         output_data.update_loss_imgs_from_np(isoContour_loss_imgs)
-        #output_data.update_loss_imgs_from_np(locImage_loss_imgs, index=1)
+        output_data.update_loss_imgs_from_np(arlImage_loss_imgs, index=1)
         #output_data.update_loss_imgs_from_np(colImage_loss_imgs, index=2)
 
         # Add regularization term
         regularization_term = 0
-        #if PITH_STAGE:
-        #    regularization_term += PITH_LAMBDA * ( (O ** 2).sum() + (V ** 2).sum())
-        #else:
-        #    regularization_term += 0.1 * DIST_LAMBDA*torch.pow(M,2).mean()
-        #    regularization_term += DIST_LAMBDA * opti_utils.regularization_of_deformations(R)
+        if PITH_STAGE:
+            regularization_term += PITH_LAMBDA * ( (O ** 2).sum() + (V ** 2).sum())
+        else:
+            regularization_term += 0.1 * DIST_LAMBDA*torch.pow(M,2).mean()
+            regularization_term += DIST_LAMBDA * opti_utils.regularization_of_deformations(R)
         #    #if KNOT: 
         #    #    regularization_term += DIST_LAMBDA*torch.pow(RK,2).mean()
         #    #    regularization_term += DIST_LAMBDA*torch.pow(CM,2).mean()
         loss += regularization_term
         
-        if grad_des_optim:
+        if CONT_OPTIM:
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -278,31 +278,54 @@ def main():
 
         # If lower loss
         if loss.item() < min_loss:
-            best_OV = [O.detach().numpy(), V.detach().numpy()]
+            if i<len(OVs): best_OV = [O.detach().numpy(), V.detach().numpy()]
             min_loss = loss.detach()
             best_i = i
         
         # Append loss logs
         isoContour_loss_log.append(float(isoContour_loss))
-        #locImage_loss_log.append(float(locImage_loss))
+        arlImage_loss_log.append(float(arlImage_loss))
         #colImage_loss_log.append(float(colImage_loss))
         #regularization_log.append(float(regularization_term.detach()))
         loss_log.append(float(loss))
 
         # Show intermediate output images and plot optimization progress
         out_display_height = 256
-        # Plot losses
-        loss_list = [loss_log, isoContour_loss_log, regularization_log]
-        loss_lbls = ["Total", "IsoContour loss", "Regularization"]
-        plt_img = data_utils.get_plot_image(loss_list, loss_lbls, regularization_log, best_i, min_loss, ITER_NUM, H=out_display_height, VL0s=VL0s, simple=False)
-        # Compose images
-        imgs = [target_data.unfolded_rgb_img, target_data.unfolded_arl_img, output_data.unfolded_gtf_map_img]
-        txts = ['', '', '']
-        map_imgs = [output_data.unfolded_loss_img]
-        map_txts = ['']
         map_cmaps = ['cool']
+
+        # Top row: inputs and combined plot
+        loss_list = [loss_log, isoContour_loss_log, arlImage_loss_log, regularization_log]
+        loss_lbls = ["Total", "IsoContour loss", "Loc Image Loss", "Regularization"]
+        plt_img = data_utils.get_plot_image(loss_list, loss_lbls, regularization_log, best_i, min_loss, ITER_NUM, H=out_display_height, VL0s=VL0s)
+        imgs = [target_data.unfolded_rgb_img, target_data.unfolded_arl_img]
+        txts = ['Input RGB imgs', 'U-Net generated ARL imgs']
+        img = data_utils.assemble_images(imgs, txts, [], [], map_cmaps, out_display_height)
+        img0 = np.hstack([img,plt_img])
+
+        # 2nd row: contour loss
+        loss_list = [isoContour_loss_log]
+        loss_lbls = ["IsoContour Loss"]
+        plt_img = data_utils.get_plot_image(loss_list, loss_lbls, [], best_i, isoContour_loss_log[best_i], ITER_NUM, H=out_display_height, VL0s=VL0s)
+        imgs = [output_data.unfolded_gtf_map_img]
+        txts = ['Output GF']
+        map_imgs = [output_data.unfolded_loss_img]
+        map_txts = ['IsoContour Loss']
         img = data_utils.assemble_images(imgs, txts, map_imgs, map_txts, map_cmaps, out_display_height)
-        img = np.hstack([img,plt_img])
+        img1 = np.hstack([img,plt_img])
+
+        # 3rd row: grey image loss
+        loss_list = [arlImage_loss_log]
+        loss_lbls = ["ARL Image Loss"]
+        plt_img = data_utils.get_plot_image(loss_list, loss_lbls, [], best_i, arlImage_loss_log[best_i], ITER_NUM, H=out_display_height, VL0s=VL0s)
+        imgs = [output_data.unfolded_arl_img]
+        txts = ['Output ARL']
+        map_imgs = [output_data.unfolded_loss_img1]
+        map_txts = ['ARL Image Loss']
+        img = data_utils.assemble_images(imgs, txts, map_imgs, map_txts, map_cmaps, out_display_height)
+        img2 = np.hstack([img,plt_img])
+
+        # Compose verically and show
+        img = np.vstack([img0,img1,img2])
         cv2.imshow("Growth field optimization", img)
         cv2.waitKey(1)
         

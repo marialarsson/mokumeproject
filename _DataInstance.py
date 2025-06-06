@@ -9,7 +9,6 @@ from matplotlib import pyplot as plt
 
 sys.path.append("COMMON")
 import data_utils
-import image_utils
 
 torch.autograd.set_detect_anomaly(True)
 torch.pi = torch.acos(torch.zeros(1)).item() * 2
@@ -47,9 +46,9 @@ class DataInstance:
             black_img_3ch = torch.zeros((*HWs[i], 3), dtype=torch.float32)
 
             self.rgb_imgs_torch.append(black_img_3ch)
-            self.rgb_imgs_np.append(image_utils.floatImg_to_intImg(black_img_3ch.numpy(), scale_255=True))
+            self.rgb_imgs_np.append(data_utils.floatImg_to_intImg(black_img_3ch.numpy(), scale_255=True))
             self.arl_imgs_torch.append(black_img_1ch)
-            self.arl_imgs_np.append(image_utils.floatImg_to_intImg(black_img_1ch.numpy(), scale_255=True))
+            self.arl_imgs_np.append(data_utils.floatImg_to_intImg(black_img_1ch.numpy(), scale_255=True))
             self.gtf_imgs_torch.append(black_img_1ch)
             self.gtf_imgs_np.append(black_img_1ch.numpy())
             self.norm_gtf_np.append(black_img_1ch.numpy())
@@ -141,7 +140,7 @@ class DataInstance:
 
             #numpy
             if img_torch.requires_grad: img_torch=img_torch.detach()
-            self.arl_imgs_np[i] = image_utils.floatImg_to_intImg(img_torch.numpy(), scale_255=True)
+            self.arl_imgs_np[i] = data_utils.floatImg_to_intImg(img_torch.numpy(), scale_255=True)
         
         self.unfolded_arl_img = data_utils.get_unfolded_image(self.arl_imgs_np)
 
@@ -252,7 +251,7 @@ class DataInstance:
             # map image
             map_img_np = 255.0*gtf_img_np.copy()
             map_img_np = map_img_np.astype(np.uint8)
-            #map_img_np = cv2.applyColorMap(map_img_np, image_utils.get_mpl_colormap('hsv'))
+            #map_img_np = cv2.applyColorMap(map_img_np, data_utils.get_mpl_colormap('hsv'))
             col_map = cv2.COLORMAP_HSV
             map_img_np = cv2.applyColorMap(map_img_np, col_map)
             map_img_np = cv2.addWeighted(map_img_np, 0.5, np.ones_like(map_img_np) * 255, 0.5, 0)
