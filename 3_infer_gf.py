@@ -174,7 +174,7 @@ def main():
             params.update_spoke_rads(R)
             # Initialize arl bar
             params.update_average_arl_color(torch.tensor(target_data.average_arl_color/255.0))
-            M = torch.zeros(256) #M is the annual ring localization 1D greymap
+            M = torch.zeros(128) #M is the annual ring localization 1D greymap
             params.update_base_arl_color_bar(length=M.size()[0])
             R.requires_grad_()
             M.requires_grad_()
