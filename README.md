@@ -4,7 +4,7 @@ This repository is associated with the journal paper "The Mokume Dataset and Inv
 The full dataset and outputs are hosted elsewhere (**INSERT LINK**). The code is hosted in this repository.
 
 
-![Teaser image.](README_IMGS/teaser.jpg)
+![Teaser image.](teaser.jpg)
 
 ***a.*** *Overview of the diverse wood species covered by the Mokume dataset.*
 ***b.*** *This data is used for training and evaluation of an inverse modeling pipeline for solid wood textures. Our method first segements the annual ring pattern and then compute a compatible procedural volumetric growth field (GF) in which the annual-rings are iso-curves/surfaces. We showcase two ways to transform this representation into a detailed 3D texture: an efficient inverse procedural model (Proc) with support for point-wise evaluation, and a versatile but resource-intensive neural cellular automaton (NCA).*

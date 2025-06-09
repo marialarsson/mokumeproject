@@ -2,7 +2,11 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 import cv2
+import os
 from matplotlib.backends.backend_agg import FigureCanvasAgg
+import math
+import random
+
 
 from procedural_wood_function import *
 
@@ -539,3 +543,303 @@ def get_ranges(params, out_img_coords, dim):
     spoke_range = [spoke_min, spoke_max, offset] #radians
     
     return height_range, spoke_range, ring_range
+
+
+
+def get_image_data(PATH, n=-1, grayscale=False):
+    src_imgs, tgt_imgs = [], []
+    file_names = os.listdir(PATH)
+    cnt = 0
+    for fn in file_names:
+        if fn.endswith("_arl.png"):
+            cnt+=1
+            if n>0 and cnt>n: break
+            idx_str = fn.split('_')[0]
+            fp = PATH + "/" + idx_str + ".png"
+            if os.path.isfile(PATH + "/" + idx_str + ".png"):
+                simg = cv2.imread(PATH + "/" + idx_str + ".png")
+                if grayscale:
+                    simg = np.mean(simg, axis=-1, keepdims=True)
+                    simg = np.repeat(simg, 3, axis=-1)
+                    simg = np.uint8(simg)
+                src_imgs.append(simg)
+                tgt_imgs.append(cv2.imread(PATH + "/" + idx_str + "_arl.png"))
+    return src_imgs, tgt_imgs
+
+
+class ImageGrid():
+
+    def __init__(self, folder_path, filename, src_imgs, tgt_imgs, CONT=False):
+
+        self.out_path = folder_path + '//' + filename + '.png'
+        self.n = len(src_imgs)
+        self.H = src_imgs[0].shape[0]
+        self.W = src_imgs[0].shape[1]
+        self.C = src_imgs[0].shape[2]
+
+        if CONT:
+            previous_grid_img = cv2.imread(self.out_path)
+            self.output = previous_grid_img
+
+        else: # new
+            output_shape = (self.H*self.n, int(self.W * 2.2), self.C) #2.2 instead of 2.0 to provide some space to the right of target image
+            self.output = np.zeros(output_shape, dtype=np.uint8)
+
+            #make first columns
+            for i in range(len(src_imgs)):
+                src_imgs[i] = cv2.resize(src_imgs[i], (self.H, self.W), interpolation=cv2.INTER_CUBIC)
+                tgt_imgs[i] = cv2.resize(tgt_imgs[i], (self.H, self.W), interpolation=cv2.INTER_CUBIC)
+            src_img_col = np.vstack(src_imgs) #stack to column
+            tgt_img_col = np.vstack(tgt_imgs) #stack to column
+            if len(tgt_img_col.shape)==2 or tgt_img_col.shape[2]!=3:
+                tgt_img_col = cv2.cvtColor(tgt_img_col,cv2.COLOR_GRAY2RGB) #grayscale to color
+            self.output = np.hstack((src_img_col,tgt_img_col))
+
+            #add space
+            self.add_vertical_line(width=int(0.2*self.W), color=False)
+
+
+    def save(self):
+        print('Saving', self.out_path)
+        cv2.imwrite(self.out_path, self.output)
+
+    def add_column(self, imgs):
+        for i in range(len(imgs)): imgs[i] = cv2.resize(imgs[i], (self.H, self.W), interpolation=cv2.INTER_CUBIC)
+        img_col = np.vstack(imgs) #stack to column
+        if len(img_col.shape) == 2: img_col = cv2.cvtColor(img_col, cv2.COLOR_GRAY2RGB)
+        self.output = np.hstack((self.output,img_col))
+        #save
+        self.save()
+
+    def replace_last_column(self, imgs):
+        for i in range(len(imgs)):
+            imgs[i] = cv2.resize(imgs[i], (self.H, self.W), interpolation=cv2.INTER_CUBIC)
+        img_col = np.vstack(imgs) #stack to column
+        img_col = cv2.cvtColor(img_col,cv2.COLOR_GRAY2RGB) #grayscale to color
+        self.output[:, -img_col.shape[1]:] = img_col
+        #save
+        self.save()
+
+    def add_vertical_line(self, width=5, color=True):
+        vline = np.zeros((self.n*self.H, width, self.C))+255
+        if color: vline[:,:,1:] = 0
+        self.output = np.hstack((self.output,vline))
+        self.save()
+
+def random_flip(img0, img1):
+    flipcode = np.random.randint(2)
+    if flipcode == 0:
+        img0 = cv2.flip(img0,0)
+        img1 = cv2.flip(img1,0)
+    return img0, img1
+
+def random_rotation(img0, img1):
+
+    # Define the rotation angle (in degrees) and the scale
+    angle = np.random.rand()*360
+    scale = 1.0
+
+    # Check that the images are of the same size
+    if img0.shape[:2]!=img1.shape[:2]:
+        print("Error. Images have different sizes.")
+        print(img0.shape, img1.shape)
+
+    # Rotation matrix
+    W,H = img0.shape[:2]
+    rotation_matrix = cv2.getRotationMatrix2D((W / 2, H / 2), angle, scale)
+
+    # Region of interest (ROI) crop parameters
+    angle_rad_90 = math.radians(angle%90)
+    L = int( W / ( math.sin(angle_rad_90) + math.cos(angle_rad_90) ))
+    start = int((W-L)/2)
+    end = int(start+L)
+
+    # Apply rotation and crop
+    img0 = cv2.warpAffine(img0, rotation_matrix, (W, H), flags=cv2.INTER_CUBIC)
+    img1 = cv2.warpAffine(img1, rotation_matrix, (W, H), flags=cv2.INTER_CUBIC)
+    img0 = img0[start:end, start:end]
+    img1 = img1[start:end, start:end]
+
+    return img0, img1
+
+def random_scale(img0, img1, PATCH_SIZE, min_scale_ratio=0.9, max_scale_ratio = 1.1, proportional = True):
+
+
+    if proportional:
+
+        L = min(img0.shape[0], img0.shape[1])
+        if L<PATCH_SIZE: print("Random scale error. Image is too small", img0.shape)
+        min_size = max( PATCH_SIZE, int(L*min_scale_ratio) )
+        L2 = np.random.randint(PATCH_SIZE, int(L*max_scale_ratio))
+        img0 = cv2.resize(img0, (L2, L2), interpolation=cv2.INTER_CUBIC)
+        img1 = cv2.resize(img1, (L2, L2), interpolation=cv2.INTER_CUBIC)
+
+    else:
+
+        W = img0.shape[0]
+        H = img0.shape[1]
+        if W<PATCH_SIZE or H<PATCH_SIZE: print("Random scale error. Image is too small", img0.shape)
+        W2 = np.random.randint(PATCH_SIZE, int(W*max_scale_ratio)+1)
+        H2 = np.random.randint(PATCH_SIZE, int(H*max_scale_ratio)+1)
+        img0 = cv2.resize(img0, (W2, H2), interpolation=cv2.INTER_CUBIC)
+        img1 = cv2.resize(img1, (W2, H2), interpolation=cv2.INTER_CUBIC)
+
+    return img0, img1
+
+def random_crop(img0, img1, PATCH_SIZE):
+
+    L = min(img0.shape[0], img0.shape[1])
+
+    if L>PATCH_SIZE:
+
+        # Calculate random crop parameters
+        start_x = np.random.randint(0, L-PATCH_SIZE)
+        start_y = np.random.randint(0, L-PATCH_SIZE)
+        end_x = start_x + PATCH_SIZE
+        end_y = start_y + PATCH_SIZE
+
+        # Apply crop to image pair
+        img0 = img0[start_x:end_x, start_y:end_y]
+        img1 = img1[start_x:end_x, start_y:end_y]
+
+    return img0, img1
+
+
+
+def colorjitter(img, cj_type_n=0):
+
+    cj_type= ["b", "s", "c"][cj_type_n]
+
+    '''
+    ### Different Color Jitter ###
+    img: image
+    cj_type: {b: brightness, s: saturation, c: constast}
+    '''
+    if cj_type == "b":
+        # value = random.randint(-50, 50)
+        value = np.random.choice(np.array([-50, -40, -30, 30, 40, 50]))
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        h, s, v = cv2.split(hsv)
+        if value >= 0:
+            lim = 255 - value
+            v[v > lim] = 255
+            v[v <= lim] = np.clip(v[v <= lim] + value, 0, 255)
+        else:
+            lim = np.absolute(value)
+            v = v.astype(np.int16)  # Temporarily allow negative values
+            v[v < lim] = 0
+            v[v >= lim] -= np.absolute(value)
+
+        v = np.clip(v, 0, 255).astype(np.uint8)
+        final_hsv = cv2.merge((h, s, v))
+        img = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
+        return img
+
+    elif cj_type == "s":
+        # value = random.randint(-50, 50)
+        value = np.random.choice(np.array([-50, -40, -30, 30, 40, 50]))
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        h, s, v = cv2.split(hsv)
+        if value >= 0:
+            lim = 255 - value
+            s[s > lim] = 255
+            s[s <= lim] = np.clip(s[s <= lim] + value, 0, 255)
+        else:
+            lim = np.absolute(value)
+            s = s.astype(np.int16) 
+            s[s < lim] = 0
+            s[s >= lim] -= np.absolute(value)
+
+        s = np.clip(s, 0, 255).astype(np.uint8)
+        final_hsv = cv2.merge((h, s, v))
+        img = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
+        return img
+
+    elif cj_type == "c":
+        brightness = 10
+        contrast = random.randint(40, 100)
+        dummy = np.int16(img)
+        dummy = dummy * (contrast/127+1) - contrast + brightness
+        dummy = np.clip(dummy, 0, 255)
+        img = np.uint8(dummy)
+        return img
+    
+
+def filters(img, f_type_n=0, fsize=3):
+
+    f_type = ["blur", "gaussian", "median"][f_type_n]
+    '''
+    ### Filtering ###
+    img: image
+    f_type: {blur: blur, gaussian: gaussian, median: median}
+    '''
+    if f_type == "blur":
+        image=img.copy()
+        #fsize = 3
+        return cv2.blur(image,(fsize,fsize))
+
+    elif f_type == "gaussian":
+        image=img.copy()
+        #fsize = 3
+        return cv2.GaussianBlur(image, (fsize, fsize), 0)
+
+    elif f_type == "median":
+        image=img.copy()
+        #fsize = 3
+        return cv2.medianBlur(image, fsize)
+    
+
+def numpy_image_to_norm_torch_data(img, PATCH_SIZE, src=True, to_torch=True, lst_out=False):
+
+    #Input image. Source: (64,64,3). Target (64,64)
+    if not src and len(img.shape)>2: #target image with wrong shape
+        img = img[:,:,0]
+
+    # Resize image to patch size
+    img = cv2.resize(img, (PATCH_SIZE, PATCH_SIZE), interpolation=cv2.INTER_CUBIC)
+
+    # Normalize
+    img = np.float32(img)/255.0
+
+    # Reshape
+    if src: img = img.transpose((2,0,1))
+    else:   img = img.reshape(1,img.shape[0], img.shape[1]) #add 1 dim
+
+    if to_torch: img = torch.tensor(img).cuda()
+
+    if lst_out and src: img = img.reshape(1,3,PATCH_SIZE,PATCH_SIZE) # img to list of one image
+
+    return img
+
+
+def norm_torch_data_to_numpy_images(data):
+    imgs = []
+    for item in data:
+        imgs.append(norm_torch_data_to_numpy_image(item))
+    return imgs
+
+def norm_torch_data_to_numpy_image(data):
+    #img = np.uint8(data.cpu().detach().numpy().copy()*255.0)
+    img = data.cpu().detach().numpy().copy() * 255.0
+    if np.any(np.isnan(img)):
+        img[np.isnan(img)] = 255.0
+        print("nan")
+    if np.any(np.isinf(img)):
+        img[np.isinf(img)] = 0.0
+        print("inf")
+    img = img.clip(0.0,255.0)
+    ## this could be sorce of image artifacts!!!### <----------------------------------------------------------------------------
+    # Print unique values in the array
+    #print("Unique values in img:", np.unique(img))
+    img = np.uint8(img)
+    img = img.transpose((1, 2, 0))
+    img = np.clip(img, 0, 255)
+    return img
+
+def numpy_images_to_norm_torch_data(imgs, PATCH_SIZE, src=True):
+    data = []
+    for img in imgs:
+        img_norm = numpy_image_to_norm_torch_data(img, PATCH_SIZE, src=src, to_torch=False, lst_out=False)
+        data.append(img_norm)
+    data = torch.tensor(np.array(data)).cuda()
+    return data

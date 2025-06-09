@@ -1,11 +1,7 @@
-import numpy as np
-import math
-import cv2
-import os
 import torch
-from torch.optim import SGD, Adam
 from datetime import datetime
 import torch.nn.functional as F
+from matplotlib import pyplot as plt
 
 torch.autograd.set_detect_anomaly(True)
 
@@ -24,8 +20,22 @@ def get_elapsed_time(start_time, print_=False):
 
 
 
-
-
+def epoch_export_plot(OUT_PATH, train_loss_log, train_image_loss_log, PLT_SUBTITLE, elapsed_days, elapsed_hrs, elapsed_mins, NUM_EPOCHS, PLT_YLIM):
+    plt.clf()
+    plt.figure(figsize=(9, 6))
+    plt.plot(train_image_loss_log, label='Train_L1-image_loss', linewidth=1.5)
+    plt.plot(train_loss_log, label='Train loss', linewidth=2, color='green')
+    plt.title(PLT_SUBTITLE + ". Duration: " + str(elapsed_days) + "days " + str(elapsed_hrs) + "h " + str(elapsed_mins) + "min", fontsize=10)
+    plt.xlim([0,NUM_EPOCHS-1])
+    plt.ylim(PLT_YLIM)
+    plt.xlabel("Number of epochs")
+    plt.ylabel("Error" )
+    handles, labels = plt.gca().get_legend_handles_labels()
+    plt.legend(handles[::-1], labels[::-1], fontsize='small', loc='upper left', bbox_to_anchor=(1, 1))
+    plt.subplots_adjust(right=0.9)
+    plt.savefig(OUT_PATH+"//plot.png",bbox_inches='tight',dpi=300)
+    #plt.show()
+    plt.close()
 
 
 def closest_point_on_line(org, dir, pt):
@@ -52,7 +62,6 @@ def closest_points_on_line(org, dir, pts): #under developement
     t = torch.dot(pts[0]-org, dir)
     cps = org + dir * ts;    #closest point (cp) on ray from center
     return cps
-
 
 def calculate_loss(params, contours):
 
@@ -81,8 +90,6 @@ def get_step_value(val_range, num_steps, index):
     return val
 
 
-
-
 def upsample_tensor(X, target_size):
     # Get the size of the last dimension
     #original_size = X.size(-1)
@@ -95,3 +102,7 @@ def upsample_tensor(X, target_size):
 
     
     return upsampled_tensor
+
+
+
+

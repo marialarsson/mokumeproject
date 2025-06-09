@@ -1,3 +1,6 @@
+# Dataset folder
+ImagePairs/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
