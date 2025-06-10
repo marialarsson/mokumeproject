@@ -44,11 +44,14 @@ def main():
     PITH_ITER_NUM = 10 # for fast debugging
     DIST_ITER_NUM = 100 # number of iterations for optimization of growth field DISTORTIONS
     DIST_ITER_NUM = 10 # for fast debugging
-    ITER_NUM = PITH_ITER_NUM + DIST_ITER_NUM
+    COL_ITER_NUM = 50
+    COL_ITER_NUM = 10 # for fast degugging
+    ITER_NUM = PITH_ITER_NUM + DIST_ITER_NUM + COL_ITER_NUM
     LEARNING_RATE = 0.02
     PITH_LAMBDA = 0.0002 
     DIST_LAMBDA = 0.1
     PITH_STAGE = True
+    ARL_STAGE = False
 
     # Resolution of R
     HEIGHT_NUM = 8
@@ -102,7 +105,9 @@ def main():
             OVs.append([O,V])
     params.update_init_pith_parameters(OVs[0][0],OVs[0][1])
     VL0s = [(index + 1) for index in range(len(OVs))]     # Vertical lines at discontinous search points for displaying in plot
-    VL0s.append(PITH_ITER_NUM-1)
+    VL0s.append(PITH_ITER_NUM - 1)
+    VL0s.append(PITH_ITER_NUM + DIST_ITER_NUM - 1)
+    
 
     """
     # Check for knot
@@ -169,37 +174,58 @@ def main():
         # Else if first iteration of distrotions
         elif i==PITH_ITER_NUM: 
             PITH_STAGE = False
+            ARL_STAGE = True
+            #
             min_loss = 9999.99
             O.requires_grad_(False)
             V.requires_grad_(False)
             params.update_init_pith_parameters(O,V)
             del optimizer
             # Initiate R
-            R = torch.zeros(HEIGHT_NUM,AZIMUTH_NUM,RADIUS_NUM)
+            R = torch.zeros(HEIGHT_NUM,AZIMUTH_NUM,RADIUS_NUM).requires_grad_()
             height_range, spoke_range, ring_range = data_utils.get_ranges(params, out_img_coords, dim)        
             params.init_refined_procedual_parameters(HEIGHT_NUM, height_range, AZIMUTH_NUM, spoke_range, RADIUS_NUM, ring_range)
             params.update_spoke_rads(R)
             # Initialize arl bar
             params.update_average_arl_color(torch.tensor(target_data.average_arl_color/255.0))
-            M = torch.zeros(128) #M is the annual ring localization 1D greymap
+            M = torch.zeros(128).requires_grad_() #M is the annual ring localization 1D greymap
             params.update_base_arl_color_bar(length=M.size()[0])
-            R.requires_grad_()
-            M.requires_grad_()
+            #
             #if KNOT: optimizer = Adam([R, M, RK, CM], lr=LEARNING_RATE)
             optimizer = Adam([R, M], lr=LEARNING_RATE)
+        elif i==PITH_ITER_NUM + DIST_ITER_NUM: 
+            PITH_STAGE = False
+            ARL_STAGE = False
+            min_loss = 9999.99
+            O.requires_grad_(False)
+            V.requires_grad_(False)
+            R.requires_grad_(False)
+            M.requires_grad_(False)
+            del optimizer
+            params.update_spoke_rads(R)
+            params.update_arl_color_bar(M)
+            # Initial col bar
+            CM = torch.zeros(128,3).requires_grad_() # color map
+            face_cols = torch.zeros(6,3).requires_grad_()
+            mean_col = torch.tensor(target_data.average_wb_rgb_color)/255.0
+            base_col_bar = mean_col.unsqueeze(0).expand(128, -1)
+            params.update_base_color_bar(base_col_bar)
+            optimizer = Adam([CM, face_cols], lr=LEARNING_RATE)
 
         # Update parameters
         if PITH_STAGE:
             params.update_init_pith_parameters(O,V)
-        else:
+        elif ARL_STAGE:
             params.update_spoke_rads(R)
             params.update_arl_color_bar(M)
             #params.update_knot_deform_parameters(RK)
+        else:
+            params.update_color_bar(CM, face_cols)
 
         # Apply procedural funciton
         img_gtfs = []
         img_arls = []
-        #img_cols = []
+        img_cols = []
 
         axes = [2,1,0,1,0,2]
         for j,px_coords in enumerate(out_img_coords):
@@ -213,27 +239,29 @@ def main():
             
             img_gtfs.append(img_gtf)
 
-            if not PITH_STAGE:
+            if ARL_STAGE:
                 #annual ring localization image
                 img_arl, _ = procedural_wood_function_refined_and_with_rings(params, px_coords, side_index=j, surface_normal_axis=ax, A=dim, B=dim, return_reshaped=True, show_knot=KNOT)
                 img_arls.append(img_arl)
 
-            #color map image
-            #img_col = procedural_wood_function_knot_only(params, px_coords, side_index=j, side_axis=ax, A=A, B=B, return_reshaped=True)
-            #img_cols.append(img_col)
+            if not PITH_STAGE and not ARL_STAGE:
+                #color map image
+                #img_col = procedural_wood_function_knot_only(params, px_coords, side_index=j, side_axis=ax, A=A, B=B, return_reshaped=True)
+                img_col, _ = procedural_wood_function_refined_and_colors_and_details(params, px_coords, side_index=j, side_axis=ax, A=dim, B=dim, show_fiber=False, show_pore=False, show_knot=KNOT, color_map=True, return_reshaped=True)
+                img_cols.append(img_col)
         
         output_data.update_gtf_imgs_from_torch(img_gtfs)
         output_data.update_gtf_map_imgs(with_contours=False)
         output_data.update_arl_imgs_from_torch(img_arls)
-        #output_data.update_rgb_imgs_from_torch(img_cols)
+        output_data.update_rgb_imgs_from_torch(img_cols)
 
         # Compute the iso contour loss
         isoContour_loss = 0
         arlImage_loss = 0
-        #colImage_loss = 0
+        colImage_loss = 0
         isoContour_loss_imgs = []
         arlImage_loss_imgs = []
-        #colImage_loss_imgs = []
+        colImage_loss_imgs = []
 
         for j in range(6):
 
@@ -251,25 +279,28 @@ def main():
             arlImage_loss += loss_value
             arlImage_loss_imgs.append(loss_img_loc)
 
-            #color image loss
-            #loss_value, loss_img_loc = loss_utils.image_loss(output_data.rgb_imgs_torch[j], target_data.rgb_imgs_torch[j])
-            #colImage_loss += loss_value
-            #colImage_loss_imgs.append(loss_img_loc)
+            if not PITH_STAGE and not ARL_STAGE:
+                #color image loss
+                loss_value, loss_img_loc = loss_utils.image_loss(output_data.rgb_imgs_torch[j], target_data.rgb_imgs_torch[j])
+                colImage_loss += loss_value
+                colImage_loss_imgs.append(loss_img_loc)
             
         if PITH_STAGE:  loss = isoContour_loss
-        else:           loss = isoContour_loss + arlImage_loss #+colImage_loss
+        elif ARL_STAGE: loss = isoContour_loss + arlImage_loss
+        else:           loss = colImage_loss
 
         output_data.update_loss_imgs_from_np(isoContour_loss_imgs)
         output_data.update_loss_imgs_from_np(arlImage_loss_imgs, index=1)
-        #output_data.update_loss_imgs_from_np(colImage_loss_imgs, index=2)
+        output_data.update_loss_imgs_from_np(colImage_loss_imgs, index=2)
 
         # Add regularization term
         regularization_term = 0
         if PITH_STAGE:
             regularization_term += PITH_LAMBDA * ( (O ** 2).sum() + (V ** 2).sum())
-        else:
+        elif ARL_STAGE:
             regularization_term += 0.1 * DIST_LAMBDA*torch.pow(M,2).mean()
             regularization_term += DIST_LAMBDA * opti_utils.regularization_of_deformations(R)
+        ###COL REG
         #    #if KNOT: 
         #    #    regularization_term += DIST_LAMBDA*torch.pow(RK,2).mean()
         #    #    regularization_term += DIST_LAMBDA*torch.pow(CM,2).mean()
@@ -292,8 +323,8 @@ def main():
         # Append loss logs
         isoContour_loss_log.append(float(isoContour_loss))
         arlImage_loss_log.append(float(arlImage_loss))
-        #colImage_loss_log.append(float(colImage_loss))
-        #regularization_log.append(float(regularization_term.detach()))
+        colImage_loss_log.append(float(colImage_loss))
+        regularization_log.append(float(regularization_term.detach()))
         loss_log.append(float(loss))
 
         # Show intermediate output images and plot optimization progress
@@ -331,12 +362,23 @@ def main():
         img = data_utils.assemble_images(imgs, txts, map_imgs, map_txts, map_cmaps, out_display_height)
         img2 = np.hstack([img,plt_img])
 
+        # 4th row: col image loss
+        loss_list = [colImage_loss_log]
+        loss_lbls = ["RGB Image Loss"]
+        plt_img = data_utils.get_plot_image(loss_list, loss_lbls, [], best_i, colImage_loss_log[best_i], ITER_NUM, H=out_display_height, VL0s=VL0s)
+        imgs = [output_data.unfolded_rgb_img]
+        txts = ['Output RGB']
+        map_imgs = [output_data.unfolded_loss_img2]
+        map_txts = ['RGB Image Loss']
+        img = data_utils.assemble_images(imgs, txts, map_imgs, map_txts, map_cmaps, out_display_height)
+        img3 = np.hstack([img,plt_img])
+
         # Compose verically and show
-        img = np.vstack([img0,img1,img2])
-        cv2.imshow("Growth field optimization", img)
+        img = np.vstack([img0,img1,img2,img3])
+        cv2.imshow("Growth field optimization and color bar initialization", img)
         cv2.waitKey(1)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img_frames.append(img)
-        
         
     dd, dh, dm, ds = opti_utils.get_elapsed_time(start_time)
     print("Computation time:", dm, "min", ds, "s")
