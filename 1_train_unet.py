@@ -106,8 +106,13 @@ def estimate_AnnualRingField(src_img, unet, save=False, export_file_path='', kme
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # Hyper parameters
-TARGET_TRAINING_DATA_SIZE = 32 #5120
-NUM_EPOCHS = 20 #2000
+# Recommended target training data size and number of epoch parameters
+TARGET_TRAINING_DATA_SIZE = 5120
+NUM_EPOCHS = 2000
+# Parameters to run through code fast for debeugging - uncomment for actual training
+TARGET_TRAINING_DATA_SIZE = 32 #for debugging
+NUM_EPOCHS = 20 #for debugging
+#Other parameters
 BATCH_SIZE = 256
 BATCH_SIZE_END = 128
 LEARNING_RATE = 0.005
