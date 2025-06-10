@@ -2,9 +2,10 @@
 ImagePairs/
 
 #Unet outputs
-#unet_output/unet_trained_model.pt
-#unet_output/
-#unet_output/
+unet_output/
+
+#Trained model
+unet_trained_model.pt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
