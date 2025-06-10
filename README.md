@@ -40,28 +40,30 @@ We demonstrate the synergy between the Mokume dataset and the proposed algorithm
 ### System Outline
 
 **Step 1:** Train the U-Net (this step can be skipped, since the trained model is provided)
-- Input: Image pair training data. (ImagePairs/training_data)
+- Input: Image pair training data (ImagePairs/training_data). Download formated dataset here **INSERT LINK**.
 - Output: Train image translation model (unet_output/unet_trained_model.pt)
 
 **Step 2:** Apply the U-Net to translate wood photographs to annual ring localization images
-- Input: Photographs of the six faces of the cube samples (Samples/XXNN/A_col.png, ..., F_col.png)
+- Input 1: Trained model (unet_trained_model.pt). Train the model yourself (step 1) or download a pre-trained model here **INSERT LINK**.
+- Input 2: Photographs of the six faces of the cube samples (Samples/XXNN/A_col.png, ..., F_col.png)
 - Output: Annual ring localization images of each face (Samples/XXNN/A_arl-unet.png, ..., F_arl-unet.png)
 
 **Step 3:** Run file X to infer the volumetric growth field of the sample and its color initalization
-- Input:
-- Output:
+- Input 1: Photographs of the six faces of the cube samples (Samples/XXNN/A_col.png, ..., F_col.png)
+- Input 2: Annual ring localization images of each face (Samples/XXNN/A_arl-unet.png, ..., F_arl-unet.png)
+- Output: ...
 
 **Step 4a:** Run file X to run the texture synthesis appraoch 1: inverse procedural texturing
-- Input:
-- Output:
+- Input: ...
+- Output: ...
 
 **Step 4b:** Run file X to train and apply texture synthesis approach 2: neural cellular automata
-- Input:
-- Output:
+- Input: ...
+- Output: ...
 
 **Step 5:** Visualize the outputs of steps 3-4
-- Input:
-- Output:
+- Input: ...
+- Output: ...
 
 ## Resources
 
