@@ -95,6 +95,11 @@ Dataset: **INSERT LINK**
 
 Results: **INSERT LINK**
 
-Reference:
+### Reference
 
 Maria Larsson, Hodaka Yamaguchi, Ehsan Pajouheshgar, I-Chao Shen, Kenji Tojo, Chia-Ming Chang, Lars Hansson, Olof Broman, Takashi Ijiri, Ariel Shamir, Wenzel Jakob, and Takeo Igarashi. 2025. The Mokume Dataset and Inverse Modeling of Solid Wood Textures. ACM Trans. Graph. 44, 4 (August 2025), 18 pages. https://doi.org/10.1145/3730874
+
+### BibTex
+```
+INSERT BIBTEX CODE
+```
