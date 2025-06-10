@@ -39,31 +39,55 @@ We demonstrate the synergy between the Mokume dataset and the proposed algorithm
 
 ### System Outline
 
-**Step 1:** Run file *1_train_unet.py* to train the U-Net (this step can be skipped, since the trained model is provided)
+**Step 1:** Train the U-Net (this step can be skipped, since the trained model is provided)
 - Input: Image pair training data (ImagePairs/training_data). Download formated dataset here **INSERT LINK**.
 - Output: Train image translation model (unet_output/unet_trained_model.pt)
 
-**Step 2:** Run file *2_apply_unet.py* to apply the U-Net to translate wood photographs to annual ring localization images
+```
+python 1_train_unet.py
+```
+
+**Step 2:** Apply the U-Net to translate wood photographs to annual ring localization images
 - Input 1: Trained model (unet_trained_model.pt). Train the model yourself (step 1) or download the pre-trained model here **INSERT LINK**.
-- Input 2: Photographs of the six faces of the cube samples (Samples/XXNN/A_col.png, ..., F_col.png)
+- Input 2: Photographs of the six faces of the cube samples (Samples/XXNN/A_col.png, ..., F_col.png, where *XXNN* is a sample ID, such as *CN03*)
 - Output: Annual ring localization images of each face (Samples/XXNN/A_arl-unet.png, ..., F_arl-unet.png)
 
-**Step 3:** Run file *3_infer_gf* to infer the volumetric growth field of the sample and its color initalization
+```
+python 2_apply_unet.py -sample CN03
+```
+
+**Step 3:** Infer the volumetric growth field of the sample and its color initalization
 - Input 1: Photographs of the six faces of the cube samples (Samples/XXNN/A_col.png, ..., F_col.png)
 - Input 2: Annual ring localization images of each face (Samples/XXNN/A_arl-unet.png, ..., F_arl-unet.png)
 - Output: ...
 
-**Step 4a:** Run file *4a_proc.py* to run the texture synthesis appraoch 1: inverse procedural texturing
+```
+python 3_infer_gf.py -sample CN03
+```
+
+**Step 4a:** Run the texture synthesis appraoch 1: inverse procedural texturing
 - Input: ...
 - Output: ...
 
-**Step 4b:** Run file *4b_nca.py* to train and apply texture synthesis approach 2: neural cellular automata (not dependent on step 4a)
+```
+python 4a_proc.py -sample CN03
+```
+
+**Step 4b:** Train and apply texture synthesis approach 2: neural cellular automata (not dependent on step 4a)
 - Input: ...
 - Output: ...
+
+```
+python 4b_nca.py -sample CN03
+```
 
 **Step 5:** Run file *5_show_outputs* to visualize the outputs
 - Input: ...
 - Output: ...
+
+```
+python 5_show_outputs.py -sample CN03
+```
 
 ## Resources
 
