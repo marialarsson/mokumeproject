@@ -39,7 +39,7 @@ We demonstrate the synergy between the Mokume dataset and the proposed algorithm
 
 ### System Outline
 
-**Step 1:** Train the U-Net (this step can be skipped, since the trained model is provided)
+**Step 1:** Train the U-Net (this step can be skipped by instead downloading a trained model)
 ```
 python 1_train_unet.py
 ```
