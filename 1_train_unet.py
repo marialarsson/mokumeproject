@@ -25,17 +25,6 @@ def evaluate_losses_on_data(unet, data_loader, loss_function):
         data_loss_log.append(loss.item())
     return data_loss_log
 
-def evaluate_arf_type_indep_loss_on_data(unet, data_loader):
-    loss = 0
-    cnt = 0
-    for srcs, tgts in data_loader:
-        outputs = unet(srcs.cuda())
-        outputs = outputs.cpu().detach().numpy().copy()
-        tgts = tgts.cpu().numpy().copy()
-        loss += loss_util.arf_type_indep_loss_function(outputs, tgts)
-        cnt += srcs.shape[0]
-    return 0.1*(loss/cnt)
-
 def patch_output_imgs(unet,src_patch_imgs):
     out_imgs = []
     src_patch_imgs = data_utils.numpy_images_to_norm_torch_data(src_patch_imgs, PATCH_SIZE, src=True) # normalize
@@ -44,13 +33,6 @@ def patch_output_imgs(unet,src_patch_imgs):
     #cv2.imshow("an out patch", out_imgs[0]) # for debugg
     #cv2.waitKey(0)                          # for debugg
     return out_imgs
-
-def save_full_imgs(unet, src_imgs, tgt_imgs, OUT_PATH, epoch, filename):
-    for i in range(len(src_imgs)):
-        src_img = src_imgs[i]
-        tgt_img = tgt_imgs[i]
-        out_path = OUT_PATH +"/" + str(epoch).zfill(4) + "_" + filename + "_" + str(i).zfill(4) + ".png"
-        estimate_AnnualRingField(src_img, tgt_img, unet, out_path, kmean_num=KMEAN_NUM)
 
 def load_real_dataset(PATH, n, noise=False, train=True, end_batch=False):
     src_imgs, tgt_imgs = data_utils.get_image_data(PATH)
@@ -62,45 +44,6 @@ def load_real_dataset(PATH, n, noise=False, train=True, end_batch=False):
     if end_batch: loader = torch.utils.data.DataLoader(dataset, batch_size=BATCH_SIZE_END, shuffle=True)
     else: loader = torch.utils.data.DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
     return loader, dataset
-
-def estimate_AnnualRingField(src_img, unet, save=False, export_file_path='', kmean_num=-1):
-
-    H, W, _   = src_img.shape
-    img       = np.zeros((H,W), dtype=np.float32)
-    img_count = np.zeros((H,W), dtype=np.float32)
-
-    #gen gaussian mask (PATCH_SIZE x PATCH_SIZE)
-    mask = np.zeros((PATCH_SIZE, PATCH_SIZE), dtype=np.float32)
-    cx, cy = (PATCH_SIZE-1)/2, (PATCH_SIZE-1)/2
-    sigma2  = 8.0 * 8.0
-    for y in range(PATCH_SIZE):
-        for x in range(PATCH_SIZE):
-            mask[y,x] = math.exp( -((x-cx) ** 2 + (y-cy)**2) / sigma2 )
-
-    for yi, xi in product(range(0,H,PATCH_SIZE//2), range(0,W,PATCH_SIZE//2)):
-        y  = yi if yi < H - PATCH_SIZE else H - PATCH_SIZE
-        x  = xi if xi < W - PATCH_SIZE else W - PATCH_SIZE
-        in_patch = src_img[y:y+PATCH_SIZE, x:x+PATCH_SIZE,:]
-
-        in_patch = data_utils.numpy_image_to_norm_torch_data(in_patch, PATCH_SIZE, src=True, lst_out=True) # normalize
-        out_patch = unet(in_patch.cuda())[0]
-        out_patch = data_utils.norm_torch_data_to_numpy_image(out_patch) # de-normalize
-
-        out_patch = out_patch.astype(np.float32).reshape(64,64)
-        img[y:y+PATCH_SIZE,x:x+PATCH_SIZE] += mask * out_patch
-        img_count[y:y+PATCH_SIZE,x:x+PATCH_SIZE] += mask
-
-
-    img = img / img_count
-    img = np.clip(img, 0, 255)
-    img = np.uint8( img )
-
-    if save: cv2.imwrite(export_file_path, img)
-
-    #cv2.imshow("img", img) #for debugg
-    #cv2.waitKey(0)         #for debugg
-
-    return img
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
