@@ -4,7 +4,7 @@ This repository is associated with the journal paper "The Mokume Dataset and Inv
 The full dataset and outputs are hosted elsewhere (**INSERT LINK**). The code is hosted in this repository.
 
 
-![Teaser image.](teaser.jpg)
+![Teaser image.](README_IMGS/teaser.jpg)
 
 ***a.*** *Overview of the diverse wood species covered by the Mokume dataset.*
 ***b.*** *This data is used for training and evaluation of an inverse modeling pipeline for solid wood textures. Our method first segements the annual ring pattern and then compute a compatible procedural volumetric growth field (GF) in which the annual-rings are iso-curves/surfaces. We showcase two ways to transform this representation into a detailed 3D texture: an efficient inverse procedural model (Proc) with support for point-wise evaluation, and a versatile but resource-intensive neural cellular automaton (NCA).*
@@ -24,18 +24,11 @@ We demonstrate the synergy between the Mokume dataset and the proposed algorithm
 ### Environment setup
 
 - Python 3.13.0
-
 - PyTorch 2.7.1, CUDA 11.8
-
 - Opencv 4.11.0
-
 - matplotlib 3.10.3
-
 - tqdm 4.67.1
-
-- ...
-
-- ...
+- imageio 2.37.0
 
 ### System Outline
 
@@ -61,7 +54,7 @@ python 2_apply_unet.py -sample CN03
 ```
 python 3_infer_gf.py -sample CN03
 ```
-
+![Gif annimation of the optimization process in 3_infer_gf.py.](README_IMGS/Optimization_process_3_infer_gf.gif)
 **Step 4a:** Run the texture synthesis appraoch 1: inverse procedural texturing
 - Input: ...
 - Output: ...

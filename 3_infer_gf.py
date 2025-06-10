@@ -9,6 +9,7 @@ from datetime import datetime
 import argparse
 from tqdm import tqdm
 import cv2
+import imageio
 
 # Functions and utilities
 sys.path.append("COMMON")
@@ -39,8 +40,10 @@ def main():
     DATA_FOLDER_PATH = "Samples\\"
 
     # Optimization parameters
-    PITH_ITER_NUM = 50 # number of iterations for optimization of growth field PITH AXIS
-    DIST_ITER_NUM = 50 # number of iterations for optimization of growth field DISTORTIONS
+    PITH_ITER_NUM = 100 # number of iterations for optimization of growth field PITH AXIS
+    PITH_ITER_NUM = 10 # for fast debugging
+    DIST_ITER_NUM = 100 # number of iterations for optimization of growth field DISTORTIONS
+    DIST_ITER_NUM = 10 # for fast debugging
     ITER_NUM = PITH_ITER_NUM + DIST_ITER_NUM
     LEARNING_RATE = 0.02
     PITH_LAMBDA = 0.0002 
@@ -51,6 +54,9 @@ def main():
     HEIGHT_NUM = 8
     AZIMUTH_NUM = 16
     RADIUS_NUM = 16
+
+    # Other
+    SAVE_GIF = True
 
     # Setup
     start_time = datetime.now()
@@ -96,7 +102,7 @@ def main():
             OVs.append([O,V])
     params.update_init_pith_parameters(OVs[0][0],OVs[0][1])
     VL0s = [(index + 1) for index in range(len(OVs))]     # Vertical lines at discontinous search points for displaying in plot
-
+    VL0s.append(PITH_ITER_NUM-1)
 
     """
     # Check for knot
@@ -142,6 +148,7 @@ def main():
     
 
     # Optimization loop 
+    img_frames = []
     for i in tqdm(range(ITER_NUM), desc=SAMPLE_NAME):
 
         
@@ -328,6 +335,7 @@ def main():
         img = np.vstack([img0,img1,img2])
         cv2.imshow("Growth field optimization", img)
         cv2.waitKey(1)
+        img_frames.append(img)
         
         
     dd, dh, dm, ds = opti_utils.get_elapsed_time(start_time)
@@ -337,6 +345,11 @@ def main():
     #file_name_pith_parameters = DATA_FOLDER_PATH + "pith.npy"
     #np.save(file_name_pith_parameters, X)
     #print("Saved pith parameters in", file_name_pith_parameters)
+
+    if SAVE_GIF and len(img_frames)>1: 
+        file_name = "Optimization_process_3_infer_gf.gif"
+        imageio.mimsave(file_name, img_frames)
+        print("Saved", file_name)
 
 
 if __name__ == "__main__":
