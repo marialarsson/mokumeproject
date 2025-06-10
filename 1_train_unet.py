@@ -10,7 +10,6 @@ from PIL import Image
 from datetime import datetime
 
 
-
 sys.path.append("COMMON")
 from unet import UNet_2D
 from DatasetReal import *

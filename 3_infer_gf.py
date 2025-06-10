@@ -10,16 +10,16 @@ import argparse
 from tqdm import tqdm
 import cv2
 
-# Classes
-from _ProceduralParameters import ProceduralParameters
-from _DataInstance import DataInstance
-
 # Functions and utilities
 sys.path.append("COMMON")
 from procedural_wood_function import *
 import data_utils
 import loss_utils
 import opti_utils
+
+# Classes
+from ProceduralParameters import ProceduralParameters
+from DataInstance import DataInstance
 
 # Constants and global settings
 torch.pi = torch.acos(torch.zeros(1)).item() * 2
