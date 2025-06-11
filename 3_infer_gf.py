@@ -10,6 +10,8 @@ import argparse
 from tqdm import tqdm
 import cv2
 import imageio
+import pickle
+
 
 # Functions and utilities
 sys.path.append("COMMON")
@@ -48,8 +50,7 @@ def main():
     COL_ITER_NUM = 10 # for fast degugging
     ITER_NUM = PITH_ITER_NUM + DIST_ITER_NUM + COL_ITER_NUM
     LEARNING_RATE = 0.02
-    PITH_LAMBDA = 0.0002 
-    DIST_LAMBDA = 0.1
+    LAMBDA = 0.02
     PITH_STAGE = True
     ARL_STAGE = False
 
@@ -236,18 +237,17 @@ def main():
             # growth field
             if PITH_STAGE:  img_gtf = procedural_wood_function_for_initialization(params, px_coords, A=dim, B=dim, return_reshaped=True)
             else:           img_gtf = procedural_wood_function_for_refinement(params, px_coords, A=dim, B=dim, return_reshaped=True, show_knot=KNOT)
-            
             img_gtfs.append(img_gtf)
 
-            if ARL_STAGE:
+            if not PITH_STAGE:
                 #annual ring localization image
-                img_arl, _ = procedural_wood_function_refined_and_with_rings(params, px_coords, side_index=j, surface_normal_axis=ax, A=dim, B=dim, return_reshaped=True, show_knot=KNOT)
+                img_arl, _ = procedural_wood_function_refined_and_with_1dmap(params, px_coords, side_index=j, surface_normal_axis=ax, A=dim, B=dim, return_reshaped=True, show_knot=KNOT, color_map=False)
                 img_arls.append(img_arl)
 
             if not PITH_STAGE and not ARL_STAGE:
                 #color map image
                 #img_col = procedural_wood_function_knot_only(params, px_coords, side_index=j, side_axis=ax, A=A, B=B, return_reshaped=True)
-                img_col, _ = procedural_wood_function_refined_and_colors_and_details(params, px_coords, side_index=j, side_axis=ax, A=dim, B=dim, show_fiber=False, show_pore=False, show_knot=KNOT, color_map=True, return_reshaped=True)
+                img_col, _ = procedural_wood_function_refined_and_with_1dmap(params, px_coords, side_index=j, surface_normal_axis=ax, A=dim, B=dim, return_reshaped=True, show_knot=KNOT, color_map=True)
                 img_cols.append(img_col)
         
         output_data.update_gtf_imgs_from_torch(img_gtfs)
@@ -268,16 +268,17 @@ def main():
             tgt_pxs = target_data.contour_pixels[j]
             tgt_pos = target_data.contour_positions[j]
 
-            #isoContour loss
-            loss_value, loss_img_loc = loss_utils.iso_contour_loss(tgt_pxs, tgt_pos, params, dim, dim, init_stage=PITH_STAGE, show_knot=KNOT)
-
-            isoContour_loss += 10*loss_value
-            isoContour_loss_imgs.append(loss_img_loc)
-
-            #annual ring localization image loss
-            loss_value, loss_img_loc = loss_utils.image_loss(output_data.arl_imgs_torch[j], target_data.arl_imgs_torch[j])
-            arlImage_loss += loss_value
-            arlImage_loss_imgs.append(loss_img_loc)
+            if PITH_STAGE or ARL_STAGE:
+                #isoContour loss
+                loss_value, loss_img_loc = loss_utils.iso_contour_loss(tgt_pxs, tgt_pos, params, dim, dim, init_stage=PITH_STAGE, show_knot=KNOT)
+                isoContour_loss += 10*loss_value
+                isoContour_loss_imgs.append(loss_img_loc)
+            
+            if ARL_STAGE:
+                #annual ring localization image loss
+                loss_value, loss_img_loc = loss_utils.image_loss(output_data.arl_imgs_torch[j], target_data.arl_imgs_torch[j])
+                arlImage_loss += loss_value
+                arlImage_loss_imgs.append(loss_img_loc)
 
             if not PITH_STAGE and not ARL_STAGE:
                 #color image loss
@@ -296,14 +297,18 @@ def main():
         # Add regularization term
         regularization_term = 0
         if PITH_STAGE:
-            regularization_term += PITH_LAMBDA * ( (O ** 2).sum() + (V ** 2).sum())
+            regularization_term += 0.01 * LAMBDA * ( (O ** 2).sum() + (V ** 2).sum())
         elif ARL_STAGE:
-            regularization_term += 0.1 * DIST_LAMBDA*torch.pow(M,2).mean()
-            regularization_term += DIST_LAMBDA * opti_utils.regularization_of_deformations(R)
+            regularization_term += LAMBDA*torch.pow(M,2).mean()
+            regularization_term += LAMBDA * opti_utils.regularization_of_deformations(R)
+        else:
+            regularization_term += LAMBDA*torch.pow(CM,2).mean()
+            regularization_term += 10 * LAMBDA*torch.pow(face_cols,2).mean()
+
         ###COL REG
         #    #if KNOT: 
-        #    #    regularization_term += DIST_LAMBDA*torch.pow(RK,2).mean()
-        #    #    regularization_term += DIST_LAMBDA*torch.pow(CM,2).mean()
+        #    #    regularization_term += LAMBDA*torch.pow(RK,2).mean()
+        #    #    regularization_term += LAMBDA*torch.pow(CM,2).mean()
         loss += regularization_term
         
         if CONT_OPTIM:
@@ -332,8 +337,8 @@ def main():
         map_cmaps = ['cool']
 
         # Top row: inputs and combined plot
-        loss_list = [loss_log, isoContour_loss_log, arlImage_loss_log, regularization_log]
-        loss_lbls = ["Total", "IsoContour loss", "Loc Image Loss", "Regularization"]
+        loss_list = [loss_log]
+        loss_lbls = ["Total"]
         plt_img = data_utils.get_plot_image(loss_list, loss_lbls, regularization_log, best_i, min_loss, ITER_NUM, H=out_display_height, VL0s=VL0s)
         imgs = [target_data.unfolded_rgb_img, target_data.unfolded_arl_img]
         txts = ['Input RGB imgs', 'U-Net generated ARL imgs']
@@ -345,11 +350,14 @@ def main():
         loss_lbls = ["IsoContour Loss"]
         plt_img = data_utils.get_plot_image(loss_list, loss_lbls, [], best_i, isoContour_loss_log[best_i], ITER_NUM, H=out_display_height, VL0s=VL0s)
         imgs = [output_data.unfolded_gtf_map_img]
-        txts = ['Output GF']
+        if PITH_STAGE: txts = ['Output GF (optmizing O and V)']
+        elif ARL_STAGE: txts = ['Output GF (optimizing R)']
+        else: txts = ['Output GF']
         map_imgs = [output_data.unfolded_loss_img]
         map_txts = ['IsoContour Loss']
         img = data_utils.assemble_images(imgs, txts, map_imgs, map_txts, map_cmaps, out_display_height)
         img1 = np.hstack([img,plt_img])
+        if not PITH_STAGE and not ARL_STAGE: img1 = np.clip(220 + 0.2*img1, 0, 255).astype(np.uint8) #ligher
 
         # 3rd row: grey image loss
         loss_list = [arlImage_loss_log]
@@ -357,10 +365,12 @@ def main():
         plt_img = data_utils.get_plot_image(loss_list, loss_lbls, [], best_i, arlImage_loss_log[best_i], ITER_NUM, H=out_display_height, VL0s=VL0s)
         imgs = [output_data.unfolded_arl_img]
         txts = ['Output ARL']
+        if ARL_STAGE: txts = ['Output ARL (optmizing M)']
         map_imgs = [output_data.unfolded_loss_img1]
         map_txts = ['ARL Image Loss']
         img = data_utils.assemble_images(imgs, txts, map_imgs, map_txts, map_cmaps, out_display_height)
         img2 = np.hstack([img,plt_img])
+        if not ARL_STAGE: img2 = np.clip(220 + 0.2*img2, 0, 255).astype(np.uint8) #ligher
 
         # 4th row: col image loss
         loss_list = [colImage_loss_log]
@@ -368,10 +378,12 @@ def main():
         plt_img = data_utils.get_plot_image(loss_list, loss_lbls, [], best_i, colImage_loss_log[best_i], ITER_NUM, H=out_display_height, VL0s=VL0s)
         imgs = [output_data.unfolded_rgb_img]
         txts = ['Output RGB']
+        if not PITH_STAGE and not ARL_STAGE: txts = ['Output RGB (optmizing col map)']
         map_imgs = [output_data.unfolded_loss_img2]
         map_txts = ['RGB Image Loss']
         img = data_utils.assemble_images(imgs, txts, map_imgs, map_txts, map_cmaps, out_display_height)
         img3 = np.hstack([img,plt_img])
+        if PITH_STAGE or ARL_STAGE: img3 = np.clip(220 + 0.2*img3, 0, 255).astype(np.uint8) 
 
         # Compose verically and show
         img = np.vstack([img0,img1,img2,img3])
@@ -387,6 +399,30 @@ def main():
     #file_name_pith_parameters = DATA_FOLDER_PATH + "pith.npy"
     #np.save(file_name_pith_parameters, X)
     #print("Saved pith parameters in", file_name_pith_parameters)
+
+    # save output
+    # iso-values of annual ring locaitons
+    peak_centers = data_utils.get_peak_centers_from_1d_gray_colormap(params.arl_color_bar,params)
+    peak_centers = torch.from_numpy(peak_centers).to(dtype=torch.float32)
+    params.update_ring_distances(peak_centers)
+    params.update_median_ring_dist()
+
+    #save procedural parameters (class instance)
+    params.detach_tensors()
+    file_name = target_img_folder_path + 'gf_params.pkl'
+    with open(file_name, 'wb') as f: pickle.dump(params, f)
+    print("Saved", file_name)
+
+    #save GF volume
+
+
+
+
+    #save color volume
+
+
+
+
 
     if SAVE_GIF and len(img_frames)>1: 
         file_name = "Optimization_process_3_infer_gf.gif"

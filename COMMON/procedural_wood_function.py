@@ -283,28 +283,38 @@ def procedural_wood_function_for_refinement(params, px_coords, A=0, B=0, show_kn
     return img_gtf
 
     
-def procedural_wood_function_refined_and_with_rings(params, px_coords, side_index = 0, surface_normal_axis=0, A=0, B=0, return_reshaped=False, show_knot=False): # procedural, based on sampling of light and dark color in image
+def procedural_wood_function_refined_and_with_1dmap(params, px_coords, side_index = 0, surface_normal_axis=0, A=0, B=0, return_reshaped=False, show_knot=False, color_map = False): # procedural, based on sampling of light and dark color in image
 
     # get growth time field, and coordinates for fiber direction calcualtion
 
     gtf = procedural_wood_function_for_refinement(params, px_coords, return_reshaped=False, show_knot=show_knot)
     
-    
+    if color_map:   M = params.color_bar
+    else:           M = params.arl_color_bar
+
     # sample color bar
     gtf = (gtf - params.ring_min) / (params.ring_max - params.ring_min)
     gtf = torch.clamp(gtf,0.0,1.0)
-    gtf *= len(params.arl_color_bar) - 2
+    gtf *= len(M) - 2
+
     
     inds_floor = torch.floor(gtf).long()
-    inds_floor = torch.clamp(inds_floor, 0, params.arl_color_bar.size()[0]-2)
+    inds_floor = torch.clamp(inds_floor, 0, M.size()[0]-2)
     inds_ceil = inds_floor + 1
     frac = gtf - inds_floor.float()
-    cols = (1 - frac) * params.arl_color_bar[inds_floor] + frac * params.arl_color_bar[inds_ceil]
+
+    if color_map:   cols = (1 - frac.unsqueeze(-1)) * M[inds_floor] + frac.unsqueeze(-1) * M[inds_ceil]
+    else:           cols = (1 - frac) * M[inds_floor] + frac * M[inds_ceil]
+
+    if color_map:
+        cols += params.side_cols[side_index]
         
     if not return_reshaped: return cols, gtf
 
     img_gtf = gtf.reshape(A,B).t()
-    img = cols.reshape(A,B).t() 
+    if color_map:   img = cols.reshape(A, B, -1).permute(1, 0, 2)
+    else:           img = cols.reshape(A,B).t() 
+    
     
     return img, img_gtf
 
