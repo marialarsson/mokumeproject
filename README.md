@@ -94,5 +94,16 @@ Maria Larsson, Hodaka Yamaguchi, Ehsan Pajouheshgar, I-Chao Shen, Kenji Tojo, Ch
 
 ### BibTex
 ```
-INSERT BIBTEX CODE
+@article{larsson2025mokume,
+  author = {Maria Larsson and Hodaka Yamaguchi and Ehsan Pajouheshgar and I-Chao Shen and Kenji Tojo and Chia-Ming Chang and Lars Hansson and Olof Broman and Takashi Ijiri and Ariel Shamir and Wenzel Jakob and Takeo Igarashi},
+  title = {The Mokume Dataset and Inverse Modeling of Solid Wood Textures},
+  journal = {ACM Transactions on Graphics},
+  volume = {44},
+  number = {4},
+  pages = {18 pages},
+  year = {2025},
+  month = aug,
+  doi = {10.1145/3730874},
+  url = {https://doi.org/10.1145/3730874}
+}
 ```
