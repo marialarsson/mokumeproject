@@ -13,7 +13,6 @@ import imageio
 import pickle
 import os
 
-
 # Functions and utilities
 sys.path.append("COMMON")
 from procedural_wood_function import *
@@ -84,8 +83,6 @@ def main():
     out_img_coords = data_utils.generate_cuboid_coordinates(dim,dim,dim)
     target_data.get_contours(out_img_coords)
 
-    out_img_cutA_coords, out_img_cutD_coords = data_utils.generate_cuboid_coordinates_cutsAD(dim)
-
     # Initialize lists for optimization
     loss_log = []
     isoContour_loss_log = []
@@ -115,54 +112,46 @@ def main():
     VL0s.append(PITH_ITER_NUM + DIST_ITER_NUM - 1)
     
 
-    """
     # Check for knot
-    RENDER_KNOT = False
-    COL_IMAGE_LOSS = False
+    KNOT = False
     ltrs = ['A','B','C','D','E','F']
     # read knot center points - get their position in the image, translate to the 3D position
     knot_pts = []
     for j in range(6):
-        file_name = out_path  + ltrs[j] + "_ann.png"
+        file_name = target_img_folder_path  + ltrs[j] + "_knot.png"
         if os.path.exists(file_name):
-            ann_img = cv2.imread(file_name, cv2.IMREAD_GRAYSCALE)
-            mask = (ann_img >= 180) & (ann_img <= 220)
+            knot_img = cv2.imread(file_name, cv2.IMREAD_GRAYSCALE)
+            mask = (knot_img >= 180) & (knot_img <= 220)
             indices = np.argwhere(mask)
             for pixel_index in indices:                
                 x = pixel_index[0]
                 y = pixel_index[1]
                 knot_pt = out_img_coords[j][y][x]
                 knot_pts.append(knot_pt)
+                print(file_name)
         else:
             break
     if len(knot_pts)==2: 
-        RENDER_KNOT = True
-        COL_IMAGE_LOSS = True
-        if EVALUATION_MODE and EVALUATION_TYPE==4: COL_IMAGE_LOSS=False
+        KNOT = True
         print("Knot identified")
         # set dir/org
-        knot_org = torch.tensor(0.5*(knot_pts[0] + knot_pts[1]))
-        knot_dir = torch.tensor(knot_pts[0] - knot_pts[1])
-        knot_dir = knot_dir/knot_dir.norm()
-        params.init_knot_parameters(knot_org, knot_dir)
+        Ok = torch.tensor(0.5*(knot_pts[0] + knot_pts[1]))
+        Vk = torch.tensor(knot_pts[0] - knot_pts[1])
+        Vk = Vk/Vk.norm()
+        Ok.requires_grad_()
+        Vk.requires_grad_()
+        params.init_knot_parameters(Ok, Vk)
         # init knot deforms
-        knot_deformations = torch.zeros(8)
-        best_knot_deformations = torch.zeros_like(knot_deformations)
+        knot_deformations = torch.zeros(8).requires_grad_()
         params.update_knot_deform_parameters(knot_deformations)
-        knot_deformations.requires_grad_()
         # init knot simple colors
-        simple_colors = torch.zeros(7)
-        params.update_simple_colors(simple_colors)
-        simple_colors.requires_grad_()"""
+        #simple_knot_colors = torch.zeros(7).requires_grad_()
+        #params.update_simple_colors(simple_knot_colors)
     
-    KNOT = False
-    
-
     # Optimization loop 
     img_frames = []
     for i in tqdm(range(ITER_NUM), desc=SAMPLE_NAME):
 
-        
         # If initial discontinous grid search stage
         if i<len(OVs): 
             O,V = OVs[i]
@@ -198,7 +187,10 @@ def main():
             params.update_base_arl_color_bar(length=M.size()[0])
             #
             #if KNOT: optimizer = Adam([R, M, RK, CM], lr=LEARNING_RATE)
-            optimizer = Adam([R, M], lr=LEARNING_RATE)
+            parameter_list = [R, M]
+            if KNOT: parameter_list.extend([Ok, Vk, knot_deformations])
+            optimizer = Adam(parameter_list, lr=LEARNING_RATE)
+
         elif i==PITH_ITER_NUM + DIST_ITER_NUM: 
             PITH_STAGE = False
             ARL_STAGE = False
@@ -207,6 +199,10 @@ def main():
             V.requires_grad_(False)
             R.requires_grad_(False)
             M.requires_grad_(False)
+            if KNOT:
+                Ok.requires_grad_(False)
+                Vk.requires_grad_(False)
+                knot_deformations.requires_grad_(False)
             del optimizer
             params.update_spoke_rads(R)
             params.update_arl_color_bar(M)
@@ -216,7 +212,9 @@ def main():
             mean_col = torch.tensor(target_data.average_wb_rgb_color)/255.0
             base_col_bar = mean_col.unsqueeze(0).expand(128, -1)
             params.update_base_color_bar(base_col_bar)
-            optimizer = Adam([CM, face_cols], lr=LEARNING_RATE)
+            parameter_list = [CM, face_cols]
+            #if KNOT: parameter_list.append()
+            optimizer = Adam(parameter_list, lr=LEARNING_RATE)
 
         # Update parameters
         if PITH_STAGE:
