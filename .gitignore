@@ -7,6 +7,9 @@ unet_output/
 #Trained model
 unet_trained_model.pt
 
+#scaps
+scraps.py
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

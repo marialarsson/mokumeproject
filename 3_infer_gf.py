@@ -11,6 +11,7 @@ from tqdm import tqdm
 import cv2
 import imageio
 import pickle
+import os
 
 
 # Functions and utilities
@@ -33,21 +34,23 @@ def main():
 
     # Add command line arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('-sample', type=str,   default="CN03", help='Chosen sample')
+    parser.add_argument('-id', type=str,   default="CN03", help='Chosen sample')
+    parser.add_argument('-show', type=int, default=1, help='Show optimization progress or not')
     args = parser.parse_args()
     
     # Sample name and location
-    SAMPLE_NAME = args.sample
+    SAMPLE_NAME = args.id
+    SHOW_OPTIM_PROG = bool(args.show)
     print("Sample", SAMPLE_NAME)
     DATA_FOLDER_PATH = "Samples\\"
 
     # Optimization parameters
     PITH_ITER_NUM = 100 # number of iterations for optimization of growth field PITH AXIS
-    PITH_ITER_NUM = 10 # for fast debugging
+    #PITH_ITER_NUM = 10 # for fast debugging
     DIST_ITER_NUM = 100 # number of iterations for optimization of growth field DISTORTIONS
-    DIST_ITER_NUM = 10 # for fast debugging
+    #DIST_ITER_NUM = 10 # for fast debugging
     COL_ITER_NUM = 50
-    COL_ITER_NUM = 10 # for fast degugging
+    #COL_ITER_NUM = 10 # for fast degugging
     ITER_NUM = PITH_ITER_NUM + DIST_ITER_NUM + COL_ITER_NUM
     LEARNING_RATE = 0.02
     LAMBDA = 0.02
@@ -80,6 +83,8 @@ def main():
     output_data = DataInstance(dim, dim, dim, OUTPUT=True)
     out_img_coords = data_utils.generate_cuboid_coordinates(dim,dim,dim)
     target_data.get_contours(out_img_coords)
+
+    out_img_cutA_coords, out_img_cutD_coords = data_utils.generate_cuboid_coordinates_cutsAD(dim)
 
     # Initialize lists for optimization
     loss_log = []
@@ -239,14 +244,13 @@ def main():
             else:           img_gtf = procedural_wood_function_for_refinement(params, px_coords, A=dim, B=dim, return_reshaped=True, show_knot=KNOT)
             img_gtfs.append(img_gtf)
 
-            if not PITH_STAGE:
+            if ARL_STAGE:
                 #annual ring localization image
                 img_arl, _ = procedural_wood_function_refined_and_with_1dmap(params, px_coords, side_index=j, surface_normal_axis=ax, A=dim, B=dim, return_reshaped=True, show_knot=KNOT, color_map=False)
                 img_arls.append(img_arl)
 
             if not PITH_STAGE and not ARL_STAGE:
                 #color map image
-                #img_col = procedural_wood_function_knot_only(params, px_coords, side_index=j, side_axis=ax, A=A, B=B, return_reshaped=True)
                 img_col, _ = procedural_wood_function_refined_and_with_1dmap(params, px_coords, side_index=j, surface_normal_axis=ax, A=dim, B=dim, return_reshaped=True, show_knot=KNOT, color_map=True)
                 img_cols.append(img_col)
         
@@ -254,6 +258,7 @@ def main():
         output_data.update_gtf_map_imgs(with_contours=False)
         output_data.update_arl_imgs_from_torch(img_arls)
         output_data.update_rgb_imgs_from_torch(img_cols)
+                        
 
         # Compute the iso contour loss
         isoContour_loss = 0
@@ -332,65 +337,67 @@ def main():
         regularization_log.append(float(regularization_term.detach()))
         loss_log.append(float(loss))
 
-        # Show intermediate output images and plot optimization progress
-        out_display_height = 256
-        map_cmaps = ['cool']
+        if SHOW_OPTIM_PROG:
 
-        # Top row: inputs and combined plot
-        loss_list = [loss_log]
-        loss_lbls = ["Total"]
-        plt_img = data_utils.get_plot_image(loss_list, loss_lbls, regularization_log, best_i, min_loss, ITER_NUM, H=out_display_height, VL0s=VL0s)
-        imgs = [target_data.unfolded_rgb_img, target_data.unfolded_arl_img]
-        txts = ['Input RGB imgs', 'U-Net generated ARL imgs']
-        img = data_utils.assemble_images(imgs, txts, [], [], map_cmaps, out_display_height)
-        img0 = np.hstack([img,plt_img])
+            # Show intermediate output images and plot optimization progress
+            out_display_height = 256
+            map_cmaps = ['cool']
 
-        # 2nd row: contour loss
-        loss_list = [isoContour_loss_log]
-        loss_lbls = ["IsoContour Loss"]
-        plt_img = data_utils.get_plot_image(loss_list, loss_lbls, [], best_i, isoContour_loss_log[best_i], ITER_NUM, H=out_display_height, VL0s=VL0s)
-        imgs = [output_data.unfolded_gtf_map_img]
-        if PITH_STAGE: txts = ['Output GF (optmizing O and V)']
-        elif ARL_STAGE: txts = ['Output GF (optimizing R)']
-        else: txts = ['Output GF']
-        map_imgs = [output_data.unfolded_loss_img]
-        map_txts = ['IsoContour Loss']
-        img = data_utils.assemble_images(imgs, txts, map_imgs, map_txts, map_cmaps, out_display_height)
-        img1 = np.hstack([img,plt_img])
-        if not PITH_STAGE and not ARL_STAGE: img1 = np.clip(220 + 0.2*img1, 0, 255).astype(np.uint8) #ligher
+            # Top row: inputs and combined plot
+            loss_list = [loss_log]
+            loss_lbls = ["Total"]
+            plt_img = data_utils.get_plot_image(loss_list, loss_lbls, regularization_log, best_i, min_loss, ITER_NUM, H=out_display_height, VL0s=VL0s)
+            imgs = [target_data.unfolded_rgb_img, target_data.unfolded_arl_img]
+            txts = ['Input RGB imgs', 'U-Net generated ARL imgs']
+            img = data_utils.assemble_images(imgs, txts, [], [], map_cmaps, out_display_height)
+            img0 = np.hstack([img,plt_img])
 
-        # 3rd row: grey image loss
-        loss_list = [arlImage_loss_log]
-        loss_lbls = ["ARL Image Loss"]
-        plt_img = data_utils.get_plot_image(loss_list, loss_lbls, [], best_i, arlImage_loss_log[best_i], ITER_NUM, H=out_display_height, VL0s=VL0s)
-        imgs = [output_data.unfolded_arl_img]
-        txts = ['Output ARL']
-        if ARL_STAGE: txts = ['Output ARL (optmizing M)']
-        map_imgs = [output_data.unfolded_loss_img1]
-        map_txts = ['ARL Image Loss']
-        img = data_utils.assemble_images(imgs, txts, map_imgs, map_txts, map_cmaps, out_display_height)
-        img2 = np.hstack([img,plt_img])
-        if not ARL_STAGE: img2 = np.clip(220 + 0.2*img2, 0, 255).astype(np.uint8) #ligher
+            # 2nd row: contour loss
+            loss_list = [isoContour_loss_log]
+            loss_lbls = ["IsoContour Loss"]
+            plt_img = data_utils.get_plot_image(loss_list, loss_lbls, [], best_i, isoContour_loss_log[best_i], ITER_NUM, H=out_display_height, VL0s=VL0s)
+            imgs = [output_data.unfolded_gtf_map_img]
+            if PITH_STAGE: txts = ['Output GF (optmizing O and V)']
+            elif ARL_STAGE: txts = ['Output GF (optimizing R)']
+            else: txts = ['Output GF']
+            map_imgs = [output_data.unfolded_loss_img]
+            map_txts = ['IsoContour Loss']
+            img = data_utils.assemble_images(imgs, txts, map_imgs, map_txts, map_cmaps, out_display_height)
+            img1 = np.hstack([img,plt_img])
+            if not PITH_STAGE and not ARL_STAGE: img1 = np.clip(220 + 0.2*img1, 0, 255).astype(np.uint8) #ligher
 
-        # 4th row: col image loss
-        loss_list = [colImage_loss_log]
-        loss_lbls = ["RGB Image Loss"]
-        plt_img = data_utils.get_plot_image(loss_list, loss_lbls, [], best_i, colImage_loss_log[best_i], ITER_NUM, H=out_display_height, VL0s=VL0s)
-        imgs = [output_data.unfolded_rgb_img]
-        txts = ['Output RGB']
-        if not PITH_STAGE and not ARL_STAGE: txts = ['Output RGB (optmizing col map)']
-        map_imgs = [output_data.unfolded_loss_img2]
-        map_txts = ['RGB Image Loss']
-        img = data_utils.assemble_images(imgs, txts, map_imgs, map_txts, map_cmaps, out_display_height)
-        img3 = np.hstack([img,plt_img])
-        if PITH_STAGE or ARL_STAGE: img3 = np.clip(220 + 0.2*img3, 0, 255).astype(np.uint8) 
+            # 3rd row: grey image loss
+            loss_list = [arlImage_loss_log]
+            loss_lbls = ["ARL Image Loss"]
+            plt_img = data_utils.get_plot_image(loss_list, loss_lbls, [], best_i, arlImage_loss_log[best_i], ITER_NUM, H=out_display_height, VL0s=VL0s)
+            imgs = [output_data.unfolded_arl_img]
+            txts = ['Output ARL']
+            if ARL_STAGE: txts = ['Output ARL (optmizing M)']
+            map_imgs = [output_data.unfolded_loss_img1]
+            map_txts = ['ARL Image Loss']
+            img = data_utils.assemble_images(imgs, txts, map_imgs, map_txts, map_cmaps, out_display_height)
+            img2 = np.hstack([img,plt_img])
+            if not ARL_STAGE: img2 = np.clip(220 + 0.2*img2, 0, 255).astype(np.uint8) #ligher
 
-        # Compose verically and show
-        img = np.vstack([img0,img1,img2,img3])
-        cv2.imshow("Growth field optimization and color bar initialization", img)
-        cv2.waitKey(1)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        img_frames.append(img)
+            # 4th row: col image loss
+            loss_list = [colImage_loss_log]
+            loss_lbls = ["RGB Image Loss"]
+            plt_img = data_utils.get_plot_image(loss_list, loss_lbls, [], best_i, colImage_loss_log[best_i], ITER_NUM, H=out_display_height, VL0s=VL0s)
+            imgs = [output_data.unfolded_rgb_img]
+            txts = ['Output RGB']
+            if not PITH_STAGE and not ARL_STAGE: txts = ['Output RGB (optmizing col map)']
+            map_imgs = [output_data.unfolded_loss_img2]
+            map_txts = ['RGB Image Loss']
+            img = data_utils.assemble_images(imgs, txts, map_imgs, map_txts, map_cmaps, out_display_height)
+            img3 = np.hstack([img,plt_img])
+            if PITH_STAGE or ARL_STAGE: img3 = np.clip(220 + 0.2*img3, 0, 255).astype(np.uint8) 
+
+            # Compose verically and show
+            img = np.vstack([img0,img1,img2,img3])
+            cv2.imshow("Growth field optimization and color bar initialization", img)
+            cv2.waitKey(1)
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            img_frames.append(img)
         
     dd, dh, dm, ds = opti_utils.get_elapsed_time(start_time)
     print("Computation time:", dm, "min", ds, "s")
@@ -401,8 +408,58 @@ def main():
     #print("Saved pith parameters in", file_name_pith_parameters)
 
     # save output
+    
+    
+
+    #save GF and ARL volumes
+
+    cube_gtf_img = np.zeros((dim,dim,dim), dtype=np.float16)    
+    cube_arl_img = np.zeros((dim,dim,dim), dtype=np.float16)
+    cube_col_img = np.zeros((dim,dim,dim,3), dtype=np.float16)
+
+    axes = [2,1,0,1,0,2]
+    for j in tqdm(range(dim), desc="Building cubes"):
+        A,B = dim, dim
+        ax = axes[0]
+        px_coords = out_img_coords[0]
+        px_coords = px_coords.reshape(-1,3)  #.view(-1,3)
+        z_val = -0.5 + j*(1.0/(dim-1))
+        px_coords[:, 2] = z_val
+        img_gtf = procedural_wood_function_for_refinement(params, px_coords, A=dim, B=dim, return_reshaped=True, show_knot=KNOT)
+        img_arl, _ = procedural_wood_function_refined_and_with_1dmap(params, px_coords, side_index=0, surface_normal_axis=ax, A=dim, B=dim, return_reshaped=True, show_knot=KNOT, color_map=False)
+        img_col, _ = procedural_wood_function_refined_and_with_1dmap(params, px_coords, side_index=0, surface_normal_axis=ax, A=dim, B=dim, return_reshaped=True, show_knot=KNOT, color_map=True)
+                
+        img_gtf = img_gtf.detach().numpy().astype(np.float16)
+        img_arl = img_arl.detach().numpy().astype(np.float16)
+        img_col = img_col.detach().numpy().astype(np.float16)
+
+        img_gtf = cv2.rotate(img_gtf, cv2.ROTATE_90_CLOCKWISE)
+        img_arl = cv2.rotate(img_arl, cv2.ROTATE_90_CLOCKWISE)
+        img_col = cv2.rotate(img_col, cv2.ROTATE_90_CLOCKWISE)
+
+        cube_gtf_img[:, :, j] = img_gtf
+        cube_arl_img[:, :, j] = img_arl
+        cube_col_img[:, :, j] = img_col
+
+    file_name = target_img_folder_path + 'gf_cube.npz'
+    cube_gtf_img = (cube_gtf_img - cube_gtf_img.min()) / (cube_gtf_img.max() - cube_gtf_img.min()) #normalizing 
+    np.savez_compressed(file_name, cube_gtf_img)
+    print("Saved", file_name)
+
+    file_name = target_img_folder_path + 'arl_cube.npz'
+    np.savez_compressed(file_name, cube_arl_img)
+    print("Saved", file_name)
+
+    file_name = target_img_folder_path + 'col_cube.npz'
+    np.savez_compressed(file_name, cube_col_img)
+    print("Saved", file_name)
+
+    #save color volume
+
+
+
     # iso-values of annual ring locaitons
-    peak_centers = data_utils.get_peak_centers_from_1d_gray_colormap(params.arl_color_bar,params)
+    peak_centers = data_utils.get_peak_centers_from_1d_gray_colormap(params.arl_color_bar.detach().numpy(),params)
     peak_centers = torch.from_numpy(peak_centers).to(dtype=torch.float32)
     params.update_ring_distances(peak_centers)
     params.update_median_ring_dist()
@@ -412,17 +469,6 @@ def main():
     file_name = target_img_folder_path + 'gf_params.pkl'
     with open(file_name, 'wb') as f: pickle.dump(params, f)
     print("Saved", file_name)
-
-    #save GF volume
-
-
-
-
-    #save color volume
-
-
-
-
 
     if SAVE_GIF and len(img_frames)>1: 
         file_name = "Optimization_process_3_infer_gf.gif"

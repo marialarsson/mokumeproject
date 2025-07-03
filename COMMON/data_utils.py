@@ -843,3 +843,34 @@ def numpy_images_to_norm_torch_data(imgs, PATCH_SIZE, src=True):
         data.append(img_norm)
     data = torch.tensor(np.array(data)).cuda()
     return data
+
+
+
+def generate_cuboid_coordinates_cutsAD(hwd):
+
+    #cut 1 (A)
+    px_pos_C = xyz_coords(hwd,hwd,hwd,hwd,0)
+    px_pos_C[:, :, 1] = -px_pos_C[:, :, 1] #reverse y
+    px_pos_E1 = px_pos_C.clone()    
+    px_pos_E1[:, :, 0] = -px_pos_E1[:, :, 0]
+    px_pos_E1[:, :, 2] = -px_pos_E1[:, :, 2] #reverse z   
+    # 
+    px_pos_E1[:, :, 0] = px_pos_E1[:, :, 1]
+    px_pos_E1[:, :, 0] += 0.5 #range -0.5 to 0.5 --> 0.0 to 1.0
+    px_pos_E1[:, :, 0] *= 0.575
+    px_pos_E1[:, :, 0] -= 0.375 
+
+    #cut 2 (D)
+    px_pos_C = xyz_coords(hwd,hwd,hwd,hwd,0)
+    px_pos_C[:, :, 1] = -px_pos_C[:, :, 1] #reverse y
+    px_pos_E = px_pos_C.clone()    
+    px_pos_E[:, :, 0] = -px_pos_E[:, :, 0]
+    px_pos_E[:, :, 2] = -px_pos_E[:, :, 2] #reverse z   
+    # 
+    px_pos_E[:, :, 0] = px_pos_E[:, :, 2]
+    px_pos_E[:, :, 0] += 0.5 #range -0.5 to 0.5 --> 0.0 to 1.0
+    px_pos_E[:, :, 0] *= 0.575
+    px_pos_E[:, :, 0] -= 0.375 
+    #px_pos_E[:, :, 0] -= 0.20
+
+    return px_pos_E1, px_pos_E
