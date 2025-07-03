@@ -138,12 +138,6 @@ def main():
         Ok = torch.tensor(0.5*(knot_pts[0] + knot_pts[1]))
         Vk = torch.tensor(knot_pts[0] - knot_pts[1])
         Vk = Vk/Vk.norm()
-        Ok.requires_grad_()
-        Vk.requires_grad_()
-        params.init_knot_parameters(Ok, Vk)
-        # init knot deforms
-        knot_deformations = torch.zeros(8).requires_grad_()
-        params.update_knot_deform_parameters(knot_deformations)
         # init knot simple colors
         #simple_knot_colors = torch.zeros(7).requires_grad_()
         #params.update_simple_colors(simple_knot_colors)
@@ -181,6 +175,11 @@ def main():
             height_range, spoke_range, ring_range = data_utils.get_ranges(params, out_img_coords, dim)        
             params.init_refined_procedual_parameters(HEIGHT_NUM, height_range, AZIMUTH_NUM, spoke_range, RADIUS_NUM, ring_range)
             params.update_spoke_rads(R)
+            # init knot
+            if KNOT:
+                params.init_knot_parameters(Ok, Vk)
+                knot_deformations = torch.zeros(8).requires_grad_()
+                params.update_knot_deform_parameters(knot_deformations)
             # Initialize arl bar
             params.update_average_arl_color(torch.tensor(target_data.average_arl_color/255.0))
             M = torch.zeros(128).requires_grad_() #M is the annual ring localization 1D greymap
@@ -222,7 +221,7 @@ def main():
         elif ARL_STAGE:
             params.update_spoke_rads(R)
             params.update_arl_color_bar(M)
-            #params.update_knot_deform_parameters(RK)
+            if KNOT: params.update_knot_deform_parameters(knot_deformations)
         else:
             params.update_color_bar(CM, face_cols)
 
