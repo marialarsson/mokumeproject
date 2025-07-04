@@ -44,12 +44,12 @@ def main():
     DATA_FOLDER_PATH = "Samples\\"
 
     # Optimization parameters
-    PITH_ITER_NUM = 100 # number of iterations for optimization of growth field PITH AXIS
-    #PITH_ITER_NUM = 10 # for fast debugging
-    DIST_ITER_NUM = 100 # number of iterations for optimization of growth field DISTORTIONS
-    #DIST_ITER_NUM = 10 # for fast debugging
-    COL_ITER_NUM = 50
-    #COL_ITER_NUM = 10 # for fast degugging
+    #PITH_ITER_NUM = 100 # number of iterations for optimization of growth field PITH AXIS
+    PITH_ITER_NUM = 10 # for fast debugging
+    #DIST_ITER_NUM = 100 # number of iterations for optimization of growth field DISTORTIONS
+    DIST_ITER_NUM = 10 # for fast debugging
+    #COL_ITER_NUM = 50
+    COL_ITER_NUM = 10 # for fast degugging
     ITER_NUM = PITH_ITER_NUM + DIST_ITER_NUM + COL_ITER_NUM
     LEARNING_RATE = 0.02
     LAMBDA = 0.02
@@ -194,8 +194,6 @@ def main():
             params.update_spoke_rads(R)
             params.update_arl_color_bar(M)
             if KNOT: params.update_knot_deform_parameters(knot_deformations)
-            params.update_ring_distances(R)
-            params.update_median_ring_dist()
             # Initial col bar
             CM = torch.zeros(128,3).requires_grad_() # color map
             face_cols = torch.zeros(6,3).requires_grad_()
@@ -244,8 +242,8 @@ def main():
 
             if not PITH_STAGE and not ARL_STAGE:
                 #color map image
-                #img_col, _ = procedural_wood_function_refined_and_with_1dmap(params, px_coords, side_index=j, surface_normal_axis=ax, A=dim, B=dim, return_reshaped=True, show_knot=KNOT, color_map=True)
-                img_col = procedural_wood_function_refined_and_colors_and_details(params, px_coords, side_index=j, side_axis=ax, A=dim, B=dim, show_fiber=False, show_pore=False, show_knot=KNOT, color_map=True, return_reshaped=True)
+                img_col, _ = procedural_wood_function_refined_and_with_1dmap(params, px_coords, side_index=j, surface_normal_axis=ax, A=dim, B=dim, return_reshaped=True, show_knot=KNOT, color_map=True)
+                #img_col = procedural_wood_function_refined_and_colors_and_details(params, px_coords, side_index=j, side_axis=ax, A=dim, B=dim, show_fiber=False, show_pore=False, show_knot=KNOT, color_map=True, return_reshaped=True)
                 img_cols.append(img_col)
         
         output_data.update_gtf_imgs_from_torch(img_gtfs)
