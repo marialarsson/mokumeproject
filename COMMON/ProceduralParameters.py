@@ -109,11 +109,11 @@ class ProceduralParameters:
         #base_rads = self.ring_min + torch.arange(X.size()[0])*self.ring_step
         self.ring_rads = base_rads + 0.5*X*self.ring_step        
 
-    def update_ring_distances(self, X):
-        self.ring_dists = X
+    #def update_ring_distances(self, X):
+    #    self.ring_dists = X
 
-    def update_median_ring_dist(self):
-        self.median_ring_dist = (self.ring_dists[1:] - self.ring_dists[:-1]).median()
+    #def update_median_ring_dist(self):
+    #    self.median_ring_dist = (self.ring_dists[1:] - self.ring_dists[:-1]).median()
 
     ### INTENSITY FIELD (ARF) GREY-SCALE COLORS ###
 
