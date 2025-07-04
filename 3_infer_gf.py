@@ -194,6 +194,8 @@ def main():
             params.update_spoke_rads(R)
             params.update_arl_color_bar(M)
             if KNOT: params.update_knot_deform_parameters(knot_deformations)
+            params.update_ring_distances(R)
+            params.update_median_ring_dist()
             # Initial col bar
             CM = torch.zeros(128,3).requires_grad_() # color map
             face_cols = torch.zeros(6,3).requires_grad_()

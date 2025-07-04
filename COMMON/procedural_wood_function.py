@@ -398,11 +398,11 @@ def procedural_wood_function_refined_and_colors_and_details(params, px_coords, s
         #knot_cols = params.knot_shadow_color * knot_mask_2.float().unsqueeze(1)
     
     # Progression within year ring
-    outward_bound_idxs = torch.sum(gtf.unsqueeze(1) > params.ring_rads, dim=1)
-    outward_bound_idxs = torch.clamp(outward_bound_idxs, min=1, max=params.ring_rads.size()[0]-1)
+    outward_bound_idxs = torch.sum(gtf.unsqueeze(1) > params.ring_dists, dim=1)
+    outward_bound_idxs = torch.clamp(outward_bound_idxs, min=1, max=params.ring_dists.size()[0]-1)
     inward_bound_idxs = outward_bound_idxs-1
-    inward_bounds = params.ring_rads[inward_bound_idxs]
-    outward_bounds = params.ring_rads[outward_bound_idxs]
+    inward_bounds = params.ring_dists[inward_bound_idxs]
+    outward_bounds = params.ring_dists[outward_bound_idxs]
     alfas = (gtf-inward_bounds) / (outward_bounds-inward_bounds)
     alfas = torch.clamp(alfas, min=0.0, max=1.0)
 
@@ -436,7 +436,7 @@ def procedural_wood_function_refined_and_colors_and_details(params, px_coords, s
         seeds = torch.floor(grid)
 
         ## add fiber noise based on seed
-        #distances_from_rings = torch.abs(params.ring_rads.unsqueeze(1)-gtf)
+        #distances_from_rings = torch.abs(params.ring_dists.unsqueeze(1)-gtf)
         #distances_from_nearest_ring, _ = torch.min(distances_from_rings, dim=0)
         #fiber_fac = distances_from_nearest_ring / params.median_ring_dist
         #fiber_fac = torch.clamp(fiber_fac,0.0,1.0)
@@ -529,11 +529,11 @@ def procedural_wood_function_refined_and_colors_and_details(params, px_coords, s
         #calcualte if it is a pore or not
         # Progression within year ring / #stratificed alfa
         stratified_gtf = (grid_ids[:, 0])*params.pore_cell_dim_ad 
-        outward_bound_idxs = torch.sum(stratified_gtf.unsqueeze(1) > params.ring_rads, dim=1)
-        outward_bound_idxs = torch.remainder(outward_bound_idxs,params.ring_rads.size()[0])
+        outward_bound_idxs = torch.sum(stratified_gtf.unsqueeze(1) > params.ring_dists, dim=1)
+        outward_bound_idxs = torch.remainder(outward_bound_idxs,params.ring_dists.size()[0])
         inward_bound_idxs = outward_bound_idxs-1
-        inward_bounds = params.ring_rads[inward_bound_idxs]
-        outward_bounds = params.ring_rads[outward_bound_idxs]
+        inward_bounds = params.ring_dists[inward_bound_idxs]
+        outward_bounds = params.ring_dists[outward_bound_idxs]
         ring_width = outward_bounds-inward_bounds
         stratified_alfas = (stratified_gtf-inward_bounds) / ring_width
         
