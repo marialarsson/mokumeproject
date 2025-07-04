@@ -181,7 +181,7 @@ def main():
             #if KNOT: optimizer = Adam([R, M, RK, CM], lr=LEARNING_RATE)
             parameter_list = [R, M]
             if KNOT: parameter_list.append(knot_deformations)
-            optimizer = Adam(parameter_list, lr=LEARNING_RATE)
+            optimizer = Adam(parameter_list, lr=2*LEARNING_RATE)
 
         elif i==PITH_ITER_NUM + DIST_ITER_NUM: 
             PITH_STAGE = False
@@ -201,7 +201,11 @@ def main():
             base_col_bar = mean_col.unsqueeze(0).expand(128, -1)
             params.update_base_color_bar(base_col_bar)
             parameter_list = [CM, face_cols]
-            #if KNOT: parameter_list.append()
+            if KNOT: 
+                knot_col_bar = torch.zeros(32,3).requires_grad_()
+                knot_col_ani = torch.zeros(1).requires_grad_()
+                params.update_knot_colors(knot_col_bar, knot_col_ani)
+                parameter_list.extend([knot_col_bar, knot_col_ani])
             optimizer = Adam(parameter_list, lr=LEARNING_RATE)
 
         # Update parameters
@@ -213,6 +217,7 @@ def main():
             if KNOT: params.update_knot_deform_parameters(knot_deformations)
         else:
             params.update_color_bar(CM, face_cols)
+            if KNOT: params.update_knot_colors(knot_col_bar, knot_col_ani)
 
         # Apply procedural funciton
         img_gtfs = []
@@ -237,7 +242,8 @@ def main():
 
             if not PITH_STAGE and not ARL_STAGE:
                 #color map image
-                img_col, _ = procedural_wood_function_refined_and_with_1dmap(params, px_coords, side_index=j, surface_normal_axis=ax, A=dim, B=dim, return_reshaped=True, show_knot=KNOT, color_map=True)
+                #img_col, _ = procedural_wood_function_refined_and_with_1dmap(params, px_coords, side_index=j, surface_normal_axis=ax, A=dim, B=dim, return_reshaped=True, show_knot=KNOT, color_map=True)
+                img_col = procedural_wood_function_refined_and_colors_and_details(params, px_coords, side_index=j, side_axis=ax, A=dim, B=dim, show_fiber=False, show_pore=False, show_knot=KNOT, color_map=True, return_reshaped=True)
                 img_cols.append(img_col)
         
         output_data.update_gtf_imgs_from_torch(img_gtfs)
