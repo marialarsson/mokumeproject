@@ -12,7 +12,6 @@ import cv2
 import imageio
 import pickle
 import os
-import pickle
 
 # Functions and utilities
 sys.path.append("COMMON")
@@ -398,13 +397,7 @@ def main():
     #file_name_pith_parameters = DATA_FOLDER_PATH + "pith.npy"
     #np.save(file_name_pith_parameters, X)
     #print("Saved pith parameters in", file_name_pith_parameters)
-
-    # save parpameters
-    params.detach_tensors()
-    file_name = target_img_folder_path + 'params' + fend + '.pkl'
-    with open(file_name, 'wb') as f: pickle.dump(params, f)
-    print("Saved", file_name)
-    
+s    
     #save GF and ARL volumes
 
     cube_gtf_img = np.zeros((dim,dim,dim), dtype=np.float16)    
