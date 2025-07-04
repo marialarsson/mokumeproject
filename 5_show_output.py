@@ -21,7 +21,7 @@ def draw_rotated_text(text, font, font_scale, thickness, color=(0, 0, 0)):
 
     return rotated
 
-def get_side_and_cut_imgs_of_cube(cube_vol, dim=256):
+def get_side_and_cut_imgs_of_cube(cube_vol, dim=256, unwb=False, ref_imgs=[]):
     if cube_vol.ndim == 3: cube_vol = np.stack([cube_vol]*3, axis=-1) # grey to col vol
     #
     sides_and_cuts_imgs = []
@@ -76,28 +76,61 @@ def get_side_and_cut_imgs_of_cube(cube_vol, dim=256):
     img = cv2.flip(img, 0)
     sides_and_cuts_imgs.append(img)
 
-    #format  
+    #format color  
     for i,img in enumerate(sides_and_cuts_imgs):
-        #print(img.min(),img.mean(),img.max())
-        #img = (img-img.min()) / (img.max()-img.min())
+        #img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img = img[:, :, ::-1]
+        sides_and_cuts_imgs[i] = img
+
+    if unwb: #undo the normailiztion/whitebalancing of the images
+        
+        # gather means of ground truth images
+        org_means = []
+        for img in ref_imgs: 
+            org_means.append(img.mean(axis=(0, 1))/255.0)
+
+        # undo white-balancing based on above means
+        #exterior surfaces
+        for i in range(6):
+            img = sides_and_cuts_imgs[i]
+            channel_means = org_means[i]
+            img = img * 2.0 * channel_means 
+            sides_and_cuts_imgs[i] = img
+        #cuts
+        channel_means = 0.66667*org_means[2] + 0.33333*org_means[1] #C and B
+        sides_and_cuts_imgs[6] *= 2.0 * channel_means 
+        channel_means = 0.66667*org_means[2] + 0.33333*org_means[0] #C and A
+        sides_and_cuts_imgs[7] *= 2.0 * channel_means 
+
+           
+    #format type  
+    for i,img in enumerate(sides_and_cuts_imgs):
         if np.issubdtype(img.dtype, np.floating): img = img * 255
         img = np.clip(img,0,255).astype(np.uint8)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         sides_and_cuts_imgs[i] = img
+
         
     # return
     return sides_and_cuts_imgs
 
-def get_slice_img_of_cube(cube_vol, index):
+def get_slice_img_of_cube(cube_vol, index, unwb=False, ref_img=None):
 
     if cube_vol.ndim == 3: cube_vol = np.stack([cube_vol]*3, axis=-1) # grey to col vol
 
     img = cube_vol[:,:,-1-index,:]
     img = np.rot90(img, k=1)
     
+    #format color
+    img = img[:, :, ::-1]
+
+    if unwb: #undo the normailiztion/whitebalancing of the images
+        channel_means = ref_img.mean(axis=(0, 1))/255.0
+        img *= 2.0 * channel_means 
+    
+    #format type
     if np.issubdtype(img.dtype, np.floating): img = img * 255
     img = np.clip(img,0,255).astype(np.uint8)
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
 
     return img
 
@@ -165,21 +198,21 @@ def main():
     file_path = FOLDER_PATH + "col_cube.npz"
     data = np.load(file_path)
     col_cube = data['arr_0']
-    col_imgs = get_side_and_cut_imgs_of_cube(col_cube)
+    col_imgs = get_side_and_cut_imgs_of_cube(col_cube, unwb=True, ref_imgs=gt_imgs)
     col_imgs.append(img0)
     
     #PROC
     file_path = FOLDER_PATH + "col_cube.npz"
     data = np.load(file_path)
     proc_cube = data['arr_0']
-    proc_imgs = get_side_and_cut_imgs_of_cube(proc_cube)
+    proc_imgs = get_side_and_cut_imgs_of_cube(proc_cube, unwb=True, ref_imgs=gt_imgs)
     proc_imgs.append(img0)
 
     #NCA
     file_path = FOLDER_PATH + "nca_cube.npz"
     data = np.load(file_path)
     nca_cube = data['arr_0']
-    nca_imgs = get_side_and_cut_imgs_of_cube(nca_cube)
+    nca_imgs = get_side_and_cut_imgs_of_cube(nca_cube, unwb=True, ref_imgs=gt_imgs)
     nca_imgs.append(img0)
     
 
@@ -192,13 +225,13 @@ def main():
         slice_img = get_slice_img_of_cube(arl_cube,depth_i)
         arl_imgs[-1] = slice_img
 
-        slice_img = get_slice_img_of_cube(col_cube,depth_i)
+        slice_img = get_slice_img_of_cube(col_cube,depth_i, unwb=True, ref_img=gt_imgs[0])
         col_imgs[-1] = slice_img
 
-        slice_img = get_slice_img_of_cube(proc_cube,depth_i)
+        slice_img = get_slice_img_of_cube(proc_cube,depth_i, unwb=True, ref_img=gt_imgs[0])
         proc_imgs[-1] = slice_img
 
-        slice_img = get_slice_img_of_cube(nca_cube,depth_i)
+        slice_img = get_slice_img_of_cube(nca_cube,depth_i, unwb=True, ref_img=gt_imgs[0])
         nca_imgs[-1] = slice_img
 
         #compose image
