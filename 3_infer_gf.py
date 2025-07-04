@@ -212,7 +212,6 @@ def main():
             params.update_arl_color_bar(M)
             if KNOT: params.update_knot_deform_parameters(knot_deformations)
         else:
-            print("got here")
             params.update_color_bar(CM, face_cols)
 
         # Apply procedural funciton
