@@ -215,7 +215,6 @@ def main():
     nca_imgs = get_side_and_cut_imgs_of_cube(nca_cube, unwb=True, ref_imgs=gt_imgs)
     nca_imgs.append(img0)
     
-
     depth_i = 0
     while True:
 
