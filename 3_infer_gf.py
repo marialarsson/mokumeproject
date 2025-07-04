@@ -44,12 +44,12 @@ def main():
     DATA_FOLDER_PATH = "Samples\\"
 
     # Optimization parameters
-    PITH_ITER_NUM = 100 # number of iterations for optimization of growth field PITH AXIS
-    #PITH_ITER_NUM = 10 # for fast debugging
-    DIST_ITER_NUM = 100 # number of iterations for optimization of growth field DISTORTIONS
-    #DIST_ITER_NUM = 10 # for fast debugging
-    COL_ITER_NUM = 50
-    #COL_ITER_NUM = 10 # for fast degugging
+    #PITH_ITER_NUM = 100 # number of iterations for optimization of growth field PITH AXIS
+    PITH_ITER_NUM = 10 # for fast debugging
+    #DIST_ITER_NUM = 100 # number of iterations for optimization of growth field DISTORTIONS
+    DIST_ITER_NUM = 10 # for fast debugging
+    #COL_ITER_NUM = 50
+    COL_ITER_NUM = 10 # for fast degugging
     ITER_NUM = PITH_ITER_NUM + DIST_ITER_NUM + COL_ITER_NUM
     LEARNING_RATE = 0.02
     LAMBDA = 0.02
@@ -180,21 +180,16 @@ def main():
             #
             #if KNOT: optimizer = Adam([R, M, RK, CM], lr=LEARNING_RATE)
             parameter_list = [R, M]
-            if KNOT: parameter_list.extend([Ok, Vk, knot_deformations])
+            if KNOT: parameter_list.append(knot_deformations)
             optimizer = Adam(parameter_list, lr=LEARNING_RATE)
 
         elif i==PITH_ITER_NUM + DIST_ITER_NUM: 
             PITH_STAGE = False
             ARL_STAGE = False
             min_loss = 9999.99
-            O.requires_grad_(False)
-            V.requires_grad_(False)
             R.requires_grad_(False)
             M.requires_grad_(False)
-            if KNOT:
-                Ok.requires_grad_(False)
-                Vk.requires_grad_(False)
-                knot_deformations.requires_grad_(False)
+            if KNOT: knot_deformations.requires_grad_(False)
             del optimizer
             params.update_spoke_rads(R)
             params.update_arl_color_bar(M)
