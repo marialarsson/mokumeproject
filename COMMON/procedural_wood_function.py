@@ -318,8 +318,6 @@ def procedural_wood_function_refined_and_with_1dmap(params, px_coords, side_inde
     
     return img, img_gtf
 
-
-
 def procedural_wood_function_knot_only(params, px_coords, side_index=0, side_axis=0, A=0, B=0, return_reshaped=False): # procedural, based on sampling of light and dark color in image
 
     # get growth time field, and coordinates for fiber direction calcualtion

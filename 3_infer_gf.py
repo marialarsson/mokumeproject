@@ -45,11 +45,11 @@ def main():
 
     # Optimization parameters
     PITH_ITER_NUM = 100 # number of iterations for optimization of growth field PITH AXIS
-    #PITH_ITER_NUM = 10 # for fast debugging
+    PITH_ITER_NUM = 10 # for fast debugging
     DIST_ITER_NUM = 100 # number of iterations for optimization of growth field DISTORTIONS
-    #DIST_ITER_NUM = 10 # for fast debugging
+    DIST_ITER_NUM = 10 # for fast debugging
     COL_ITER_NUM = 50
-    #COL_ITER_NUM = 10 # for fast degugging
+    COL_ITER_NUM = 10 # for fast degugging
     ITER_NUM = PITH_ITER_NUM + DIST_ITER_NUM + COL_ITER_NUM
     LEARNING_RATE = 0.02
     LAMBDA = 0.02
@@ -128,20 +128,13 @@ def main():
                 y = pixel_index[1]
                 knot_pt = out_img_coords[j][y][x]
                 knot_pts.append(knot_pt)
-                print(file_name)
-        else:
-            break
     if len(knot_pts)==2: 
         KNOT = True
         print("Knot identified")
-        # set dir/org
         Ok = torch.tensor(0.5*(knot_pts[0] + knot_pts[1]))
         Vk = torch.tensor(knot_pts[0] - knot_pts[1])
         Vk = Vk/Vk.norm()
-        # init knot simple colors
-        #simple_knot_colors = torch.zeros(7).requires_grad_()
-        #params.update_simple_colors(simple_knot_colors)
-    
+        
     # Optimization loop 
     img_frames = []
     for i in tqdm(range(ITER_NUM), desc=SAMPLE_NAME):
