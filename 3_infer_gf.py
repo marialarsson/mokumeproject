@@ -193,6 +193,7 @@ def main():
             del optimizer
             params.update_spoke_rads(R)
             params.update_arl_color_bar(M)
+            if KNOT: params.update_knot_deform_parameters(knot_deformations)
             # Initial col bar
             CM = torch.zeros(128,3).requires_grad_() # color map
             face_cols = torch.zeros(6,3).requires_grad_()
@@ -211,6 +212,7 @@ def main():
             params.update_arl_color_bar(M)
             if KNOT: params.update_knot_deform_parameters(knot_deformations)
         else:
+            print("got here")
             params.update_color_bar(CM, face_cols)
 
         # Apply procedural funciton
