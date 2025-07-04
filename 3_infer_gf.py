@@ -178,10 +178,9 @@ def main():
             M = torch.zeros(128).requires_grad_() #M is the annual ring localization 1D greymap
             params.update_base_arl_color_bar(length=M.size()[0])
             #
-            #if KNOT: optimizer = Adam([R, M, RK, CM], lr=LEARNING_RATE)
             parameter_list = [R, M]
             if KNOT: parameter_list.append(knot_deformations)
-            optimizer = Adam(parameter_list, lr=2*LEARNING_RATE)
+            optimizer = Adam(parameter_list, lr=LEARNING_RATE)
 
         elif i==PITH_ITER_NUM + DIST_ITER_NUM: 
             PITH_STAGE = False
@@ -279,7 +278,7 @@ def main():
 
             if not PITH_STAGE and not ARL_STAGE:
                 #color image loss
-                loss_value, loss_img_loc = loss_utils.image_loss(output_data.rgb_imgs_torch[j], target_data.rgb_imgs_torch[j])
+                loss_value, loss_img_loc = loss_utils.image_loss(output_data.rgb_imgs_torch[j], target_data.wb_rgb_imgs_torch[j])
                 colImage_loss += loss_value
                 colImage_loss_imgs.append(loss_img_loc)
             
@@ -339,7 +338,7 @@ def main():
             loss_list = [loss_log]
             loss_lbls = ["Total"]
             plt_img = data_utils.get_plot_image(loss_list, loss_lbls, regularization_log, best_i, min_loss, ITER_NUM, H=out_display_height, VL0s=VL0s)
-            imgs = [target_data.unfolded_rgb_img, target_data.unfolded_arl_img]
+            imgs = [target_data.unfolded_wb_rgb_img, target_data.unfolded_arl_img]
             txts = ['Input RGB imgs', 'U-Net generated ARL imgs']
             img = data_utils.assemble_images(imgs, txts, [], [], map_cmaps, out_display_height)
             img0 = np.hstack([img,plt_img])
@@ -445,10 +444,6 @@ def main():
     file_name = target_img_folder_path + 'col_cube.npz'
     np.savez_compressed(file_name, cube_col_img)
     print("Saved", file_name)
-
-    #save color volume
-
-
 
     # iso-values of annual ring locaitons
     peak_centers = data_utils.get_peak_centers_from_1d_gray_colormap(params.arl_color_bar.detach().numpy(),params)
