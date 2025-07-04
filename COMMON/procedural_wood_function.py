@@ -287,7 +287,7 @@ def procedural_wood_function_refined_and_with_1dmap(params, px_coords, side_inde
 
     # get growth time field, and coordinates for fiber direction calcualtion
 
-    gtf, _, _, _, stem_gtf, knot_gtf = procedural_wood_function_for_refinement(params, px_coords, return_reshaped=False, show_knot=show_knot, return_stem_knot_gtfs=True)
+    gtf, _, _, _, stem_gtf, knot_gtf = procedural_wood_function_for_refinement(params, px_coords, return_reshaped=False, show_knot=show_knot, return_stem_knot_gtfs=True, return_cylindrical_coords=True)
     
     if color_map:   M = params.color_bar
     else:           M = params.arl_color_bar
@@ -314,12 +314,7 @@ def procedural_wood_function_refined_and_with_1dmap(params, px_coords, side_inde
         #knot mask
         sharpness = 10.0
         knot_mask = torch.sigmoid(sharpness * (stem_gtf - knot_gtf))
-   
-        #surface normal / knot skeleton alignment (for anisotrophic color)
-        knot_surface_angle = closest_angle(norm, params.knot_direction)
-        if knot_surface_angle>0.5*torch.pi: knot_surface_angle = torch.pi - knot_surface_angle
-        knot_surface_angle /= 0.5*torch.pi #range 0.0-1.0
-        
+       
         # progression within knot color map
         knot_gtf_scaled = knot_gtf / params.ring_max
         knot_gtf_scaled *= params.knot_color_bar.size()[0] - 1
@@ -332,11 +327,8 @@ def procedural_wood_function_refined_and_with_1dmap(params, px_coords, side_inde
         
         # sample knot color map
         knot_cols = (1 - frac) * params.knot_color_bar[inds_floor] + frac * params.knot_color_bar[inds_ceil]
-        # apply anisotropic factor
-        factor = 1.0 - params.knot_color_anisotrophy_factor*knot_surface_angle
         
         # add knot color to general color
-        knot_cols = mix(cols, knot_cols, factor)
         cols = mix(cols, knot_cols, knot_mask)
 
         
