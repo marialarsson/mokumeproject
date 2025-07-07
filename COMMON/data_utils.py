@@ -8,7 +8,7 @@ import math
 import random
 
 
-from procedural_wood_function import *
+from COMMON.procedural_wood_function import *
 
 torch.pi = torch.acos(torch.zeros(1)).item() * 2
 torch.set_default_dtype(torch.float32)
@@ -251,7 +251,7 @@ def get_unfolded_image(imgs, black_bg=False): #false before, does it cause any p
             img = np.copy(imgs[i])
             if img.dtype!=np.uint8:
                 img = (255.0*img).astype(np.uint8)
-            all_imgs.append(imgs[i])
+            all_imgs.append(img)
         else:
             all_imgs.append(np.ones(imgs[0].shape, dtype=np.uint8)*255)
 
