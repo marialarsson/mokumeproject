@@ -7,13 +7,10 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 import math
 import random
 
-
 from COMMON.procedural_wood_function import *
 
 torch.pi = torch.acos(torch.zeros(1)).item() * 2
 torch.set_default_dtype(torch.float32)
-torch.autograd.set_detect_anomaly(True)
-
 
 def get_cube_side_images(IN_PATH, H=-1, W=-1, unet_output=True, return_annotations=False, display=False):
 

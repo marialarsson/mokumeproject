@@ -392,12 +392,7 @@ def main():
         
     dd, dh, dm, ds = opti_utils.get_elapsed_time(start_time)
     print("Computation time:", dm, "min", ds, "s")
-
-    # Save optimized X
-    #file_name_pith_parameters = DATA_FOLDER_PATH + "pith.npy"
-    #np.save(file_name_pith_parameters, X)
-    #print("Saved pith parameters in", file_name_pith_parameters)
-s    
+    
     #save GF and ARL volumes
 
     cube_gtf_img = np.zeros((dim,dim,dim), dtype=np.float16)    

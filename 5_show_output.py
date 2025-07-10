@@ -139,7 +139,7 @@ def main():
     # Add command line arguments with flags
     parser = argparse.ArgumentParser()
     parser.add_argument('-id', type=str, default='CN03', help='Wood sample ID (specices code and number)')
-    parser.add_argument('-w', type=int, default=800, help='Max width of output display image')
+    parser.add_argument('-w', type=int, default=1000, help='Max width of output display image')
     
 
     args = parser.parse_args()
