@@ -46,7 +46,7 @@ def main():
     # Optimization parameters
     PITH_ITER_NUM = 100 # number of iterations for optimization of growth field PITH AXIS
     #PITH_ITER_NUM = 10 # for fast debugging
-    DIST_ITER_NUM = 150 # number of iterations for optimization of growth field DISTORTIONS
+    DIST_ITER_NUM = 200 # number of iterations for optimization of growth field DISTORTIONS
     #DIST_ITER_NUM = 10 # for fast debugging
     COL_ITER_NUM = 100
     #COL_ITER_NUM = 10 # for fast degugging
@@ -293,20 +293,21 @@ def main():
         # Add regularization term
         regularization_term = 0
         if PITH_STAGE:
-            regularization_term += 0.01 * LAMBDA * ( (O ** 2).sum() + (V ** 2).sum())
+            regularization_term += 0.1 * LAMBDA * ( (O ** 2).sum() + (V ** 2).sum())
         elif ARL_STAGE:
-            regularization_term += LAMBDA*torch.pow(M,2).mean()
-            regularization_term += LAMBDA * opti_utils.regularization_of_deformations(R)
+            regularization_term += LAMBDA * torch.pow(M,2).mean()
+            regularization_term += 0.5 * LAMBDA * opti_utils.regularization_of_deformations(R)
+            if KNOT:
+                regularization_term += 0.5 * LAMBDA * torch.pow(knot_deformations,2).mean()
         else:
             regularization_term += LAMBDA*torch.pow(CM,2).mean()
             regularization_term += 10 * LAMBDA*torch.pow(face_cols,2).mean()
-
-        ###COL REG
-        #    #if KNOT: 
-        #    #    regularization_term += LAMBDA*torch.pow(RK,2).mean()
-        #    #    regularization_term += LAMBDA*torch.pow(CM,2).mean()
+            if KNOT:
+                regularization_term += LAMBDA*torch.pow(knot_col_bar,2).mean()
+                regularization_term += LAMBDA*torch.pow(knot_col_ani,2).mean()
         loss += regularization_term
         
+
         if CONT_OPTIM:
             optimizer.zero_grad()
             loss.backward()
