@@ -46,7 +46,7 @@ def main():
     # Optimization parameters
     PITH_ITER_NUM = 100 # number of iterations for optimization of growth field PITH AXIS
     #PITH_ITER_NUM = 10 # for fast debugging
-    DIST_ITER_NUM = 100 # number of iterations for optimization of growth field DISTORTIONS
+    DIST_ITER_NUM = 150 # number of iterations for optimization of growth field DISTORTIONS
     #DIST_ITER_NUM = 10 # for fast debugging
     COL_ITER_NUM = 100
     #COL_ITER_NUM = 10 # for fast degugging
