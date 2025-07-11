@@ -306,6 +306,7 @@ def main():
                 regularization_term += LAMBDA*torch.pow(knot_col_bar,2).mean()
                 regularization_term += LAMBDA*torch.pow(knot_col_ani,2).mean()
         loss += regularization_term
+        print("reg term", regularization_term.item())
         
 
         if CONT_OPTIM:
@@ -328,6 +329,8 @@ def main():
         colImage_loss_log.append(float(colImage_loss))
         regularization_log.append(float(regularization_term.detach()))
         loss_log.append(float(loss))
+
+        
 
         if SHOW_OPTIM_PROG:
 
