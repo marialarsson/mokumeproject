@@ -46,7 +46,7 @@ def main():
     # Optimization parameters
     PITH_ITER_NUM = 100 # number of iterations for optimization of growth field PITH AXIS
     #PITH_ITER_NUM = 10 # for fast debugging
-    DIST_ITER_NUM = 300 # number of iterations for optimization of growth field DISTORTIONS
+    DIST_ITER_NUM = 200 # number of iterations for optimization of growth field DISTORTIONS
     #DIST_ITER_NUM = 10 # for fast debugging
     COL_ITER_NUM = 100
     #COL_ITER_NUM = 10 # for fast degugging
@@ -180,7 +180,7 @@ def main():
             #
             parameter_list = [R, M]
             if KNOT: parameter_list.append(knot_deformations)
-            optimizer = Adam(parameter_list, lr=0.5*LEARNING_RATE)
+            optimizer = Adam(parameter_list, lr=LEARNING_RATE)
 
         elif i==PITH_ITER_NUM + DIST_ITER_NUM: 
             PITH_STAGE = False
@@ -296,7 +296,7 @@ def main():
             regularization_term += 0.1 * LAMBDA * ( (O ** 2).sum() + (V ** 2).sum())
         elif ARL_STAGE:
             regularization_term += LAMBDA * torch.pow(M,2).mean()
-            regularization_term += LAMBDA * opti_utils.regularization_of_deformations(R)
+            regularization_term += LAMBDA * 5.0*opti_utils.regularization_of_deformations(R)
             if KNOT:
                 regularization_term += 0.5 * LAMBDA * torch.pow(knot_deformations,2).mean()
         else:
