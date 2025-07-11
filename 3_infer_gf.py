@@ -52,7 +52,7 @@ def main():
     #COL_ITER_NUM = 10 # for fast degugging
     ITER_NUM = PITH_ITER_NUM + DIST_ITER_NUM + COL_ITER_NUM
     LEARNING_RATE = 0.02
-    LAMBDA = 0.5
+    LAMBDA = 1.0
     PITH_STAGE = True
     ARL_STAGE = False
 
