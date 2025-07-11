@@ -52,7 +52,7 @@ def main():
     #COL_ITER_NUM = 10 # for fast degugging
     ITER_NUM = PITH_ITER_NUM + DIST_ITER_NUM + COL_ITER_NUM
     LEARNING_RATE = 0.02
-    LAMBDA = 1.0
+    LAMBDA = 0.5
     PITH_STAGE = True
     ARL_STAGE = False
 
@@ -293,12 +293,12 @@ def main():
         # Add regularization term
         regularization_term = 0
         if PITH_STAGE:
-            regularization_term += 0.001 * LAMBDA * ( (O ** 2).sum() + (V ** 2).sum())
+            regularization_term += 0.01 * LAMBDA * ( (O ** 2).sum() + (V ** 2).sum())
         elif ARL_STAGE:
             regularization_term += LAMBDA * torch.pow(M,2).mean()
             regularization_term += LAMBDA * opti_utils.regularization_of_deformations(R)
             if KNOT:
-                regularization_term += LAMBDA * torch.pow(knot_deformations,2).mean()
+                regularization_term += 0.1 * LAMBDA * torch.pow(knot_deformations,2).mean()
         else:
             regularization_term += LAMBDA*torch.pow(CM,2).mean()
             regularization_term += 10*LAMBDA*torch.pow(face_cols,2).mean()
@@ -306,9 +306,7 @@ def main():
                 regularization_term += LAMBDA*torch.pow(knot_col_bar,2).mean()
                 regularization_term += LAMBDA*torch.pow(knot_col_ani,2).mean()
         loss += regularization_term
-        print("reg term", regularization_term.item())
         
-
         if CONT_OPTIM:
             optimizer.zero_grad()
             loss.backward()
