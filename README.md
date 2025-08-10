@@ -30,7 +30,7 @@ We demonstrate the synergy between the Mokume dataset and the proposed algorithm
 - tqdm 4.67.1
 - imageio 2.37.0
 - ...
-- ... in progress
+- ...
 
 ### System Outline
 
