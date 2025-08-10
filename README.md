@@ -1,7 +1,7 @@
 # The Mokume Dataset and Inverse Modeling of Solid Wood Textures
 
-This repository is associated with the journal paper "The Mokume Dataset and Inverse Modeling of Solid Wood Textures" presented at SIGGRAPH 2025 ([PDF](https://www.ma-la.com/mokume/preprint_paper.pdf), [DOI](https://doi.org/10.1145/3730874)).
-The full dataset and outputs are hosted elsewhere (**INSERT LINK**). The code is hosted in this repository.
+This repository is associated with the journal paper "The Mokume Dataset and Inverse Modeling of Solid Wood Textures" presented at SIGGRAPH 2025 ([PDF](https://dl.acm.org/doi/pdf/10.1145/3730874), [DOI](https://doi.org/10.1145/3730874)).
+The dataset is hosted on [Zenodo](https://zenodo.org/records/15588748). The code is hosted in this repository.
 
 
 ![Teaser image.](README_IMGS/teaser.jpg)
@@ -29,50 +29,46 @@ We demonstrate the synergy between the Mokume dataset and the proposed algorithm
 - matplotlib 3.10.3
 - tqdm 4.67.1
 - imageio 2.37.0
-
+- ...
+- ... in progress
 
 ### System Outline
 
 **Step 1:** Train the U-Net (this step can be skipped by instead downloading a trained model)
-- Input: Image pair training data (ImagePairs/training_data). Download formated dataset here **INSERT LINK**.
-- Output: Train image translation model (unet_output/unet_trained_model.pt)
+To obtain training data, download ImagePairs folder from [Zenodo](https://zenodo.org/records/15588748).
 ```
 python 1_train_unet.py
 ```
 
 **Step 2:** Apply the U-Net to translate wood photographs to annual ring localization images
-- Input 1: Trained model (unet_trained_model.pt). Train the model yourself (step 1) or download an already trained model here **INSERT LINK**.
-- Input 2: Photographs of the six faces of the cube samples (Samples/XXNN/A_col.png, ..., F_col.png, where *XXNN* is a sample ID, such as *CN03*)
-- Output: Annual ring localization images of each face (Samples/XXNN/A_arl-unet.png, ..., F_arl-unet.png)
+- Use the trained model from step 1 (unet_trained_model.pt), or download a pre-trained model from [Zenodo](https://zenodo.org/records/15588748).
+
 ```
 python 2_apply_unet.py -sample CN03
 ```
 
 **Step 3:** Infer the volumetric growth field of the sample and its color initalization
-- Input 1: Photographs of the six faces of the cube samples (Samples/XXNN/A_col.png, ..., F_col.png)
-- Input 2: Annual ring localization images of each face (Samples/XXNN/A_arl-unet.png, ..., F_arl-unet.png)
-- Output: ...
+
 ```
 python 3_infer_gf.py -sample CN03
 ```
 ![Gif annimation of the optimization process in 3_infer_gf.py.](README_IMGS/Optimization_process_3_infer_gf.gif)
 **Step 4a:** Run the texture synthesis appraoch 1: inverse procedural texturing
-- Input: ...
-- Output: ...
+
+(code in progress)
+
 ```
 python 4a_proc.py -sample CN03
 ```
 
-**Step 4b:** Train and apply texture synthesis approach 2: neural cellular automata (not dependent on step 4a)
-- Input: ...
-- Output: ...
+**Step 4b:** Train and apply texture synthesis approach 2: neural cellular automata (independent of step 4a)
+
 ```
-python 4b_nca.py -sample CN03
+python 4b_nca.ipynb -sample CN03
 ```
 
 **Step 5:** Run file *5_show_outputs* to visualize the outputs
-- Input: ...
-- Output: ...
+
 ```
 python 5_show_outputs.py -sample CN03
 ```
@@ -85,9 +81,8 @@ PDF: https://www.ma-la.com/mokume/preprint_paper.pdf
 
 DOI: https://doi.org/10.1145/3730874
 
-Dataset: **INSERT LINK**
+Dataset: https://zenodo.org/records/15588748
 
-Results: **INSERT LINK**
 
 ### Reference
 
